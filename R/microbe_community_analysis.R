@@ -3,7 +3,6 @@ library(tidyverse)
 library(vegan)
 library(topomicro)
 library(ggrepel)
-library(gllvm)
 library(janitor)
 key <- readxl::read_xlsx("data/Church_Park_Microbial_Data.xlsx", sheet = 1) 
 ra_ITS <- readxl::read_xlsx("data/Church_Park_Microbial_Data.xlsx", sheet = 2) |>
@@ -40,7 +39,7 @@ fitf<-envfit(nmds,
   topomicro::tidy_envfit()|>
   filter(p < 0.05) |>
   mutate(NMDS1 = (NMDS1)* .75,
-         NMDS2 = (NMDS2)* .75);fit
+         NMDS2 = (NMDS2)* .75);fitf
 fitpaf<-envfit(nmdspa, 
               soil |> dplyr::select(-blk) |> filter(depth != "15"), 
               permutations = 9999, 
@@ -48,7 +47,7 @@ fitpaf<-envfit(nmdspa,
   topomicro::tidy_envfit()|>
   filter(p < 0.05) |>
   mutate(NMDS1 = (NMDS1)* .5,
-         NMDS2 = (NMDS2)* .5);fitpa
+         NMDS2 = (NMDS2)* .5);fitpaf
 
 
 
@@ -86,22 +85,25 @@ pof <- nmdspa$points |>
         panel.background = element_rect(color="black", fill=NA)) +
   ggtitle("Occurrence, ITS (Fungi)");pof
 
+adonis2(commf ~ treatment+ block + soil_p_h + na_mg_g + po4_mg_g , 
+        data = sites_w_23_soil)
+
 # ggpubr::ggarrange(paf, pof, nrow=2) |>
 #   ggsave(filename = "out/nmds_microbes_fungi_d5.png", width=7, height=7)
 
 
 
 # 16s ==========================================================================
-comm <- ra_16s  %>%
+commb <- ra_16s  %>%
   pivot_longer(cols = names(.)[2:ncol(.)]) %>%
   pivot_wider(id_cols = name, names_from = taxonomy, values_from = value, values_fn = sum)|>
   filter(str_sub(name,1,3) != "C_K") |>
   mutate(name = str_replace_all(name,"B_M", "BM"))|>
   filter(!str_detect(name, '_15')) |>
-  tibble::column_to_rownames("name");comm
+  tibble::column_to_rownames("name");commb
 
-nmds <- vegan::metaMDS(comm, trymax=100)
-nmdspa <- vegan::metaMDS(decostand(comm, 'pa'), trymax = 100)
+nmds <- vegan::metaMDS(commb, trymax=100)
+nmdspa <- vegan::metaMDS(decostand(commb, 'pa'), trymax = 100)
 
 fit<-envfit(nmds, 
             soil |> dplyr::select(-blk) |> filter(depth != "15"), 
@@ -159,31 +161,5 @@ po <- nmdspa$points |>
 ggpubr::ggarrange(pa, po, paf, pof, ncol=2, nrow=2, common.legend = T, legend="bottom") |>
   ggsave(filename = "out/nmds_microbes_5in.png", width=7, height=7, bg="white")
 
-
-# gllvm ========================================================================
-soil <- read_csv('data/cp_soil_nutrients_almModified.xlsx - Sheet1.csv') |>
-  janitor::clean_names() |>
-  dplyr::select(-ends_with('mg_l'), -sample_num, -plot_id) |>
-  mutate(sample_id = str_replace_all(sample_id, "B_M", "BM"),
-         depth = ifelse(depth == "0-5", "5", "15"),
-         trt = as.factor(trt),
-         blk = as.factor(blk),
-         depth = as.factor(depth)) |>
-  tibble::column_to_rownames("sample_id"); glimpse(soil)
-
-commf <- ra_ITS %>%
-  pivot_longer(cols = names(.)[2:ncol(.)]) %>%
-  pivot_wider(id_cols = name, names_from = taxonomy, values_from = value, values_fn = sum)|>
-  filter(str_sub(name,1,3) != "C_K") |>
-  mutate(name = str_replace_all(name,"B_M", "BM"))|>
-  filter(!str_detect(name, '_15.2')) |>
-  tibble::column_to_rownames("name") 
-
-x <- gllvm(y = commf |> decostand("pa"), X = soil, family = "binomial", 
-           fomula = ~ trt*depth,
-           row.eff = ~ (1|blk),
-           method = "LA",
-           control.start = list(starting.val = "random"))
-
-ordiplot(x)
-coefplot(x)
+adonis2(commb ~ treatment+ block + soil_p_h + na_mg_g + po4_mg_g, 
+        data = sites_w_23_soil)
