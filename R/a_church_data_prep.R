@@ -1,6 +1,30 @@
 # church park data prep
 library(tidyverse)
 library(janitor)
+library(sf)
+library(terra)
+library(topomicro)
+library(solrad)
+# getting topography stuff
+
+ext <- c(-106, -105.8, 39.9, 40)
+dem <- terra::rast("data/dem/n39_w106_1arc_v3.bil") |>
+  terra::crop(ext)
+names(dem) <- "elevation"
+
+terrain <- terra::terrain(dem, v = c("slope", "aspect", "TPI", "TRI", "flowdir"))
+twi <- topomicro::get_twi(dem, resolution = 30)
+
+topo <- read_csv("data/fraser - locations.csv") |>
+  st_as_sf(crs = 4326, coords = c("longitude", "latitude"), remove=F) %>%
+  mutate(terra::extract(terrain, .),
+         terra::extract(twi$twi, .),
+         terra::extract(dem, .),
+         folded_aspect = topomicro::get_folded_aspect(aspect),
+         block = str_c("b", plot)) |>
+  st_set_geometry(NULL) |>
+  dplyr::select(-ID, -plot)
+
 
 soil_23 <- read_csv('data/cp_soil_nutrients_almModified.xlsx - Sheet1.csv') |>
   janitor::clean_names() |>
@@ -80,9 +104,10 @@ sites_w_23_soil <-
   left_join(bacteria_div) |>
   left_join(fungi_div) |>
   tibble::column_to_rownames("bt") |>
-  mutate(treatment = treatment |> str_replace_all("c", "0"))
+  mutate(treatment = treatment |> str_replace_all("c", "0")) |>
+  left_join(topo)
 
-# veg community 
+# veg community 2016 =============================================
 comm_16_long <- readxl::read_xlsx("data/Church Park Botany 2016_ccr.xlsx", sheet = "botany2016") |>
   dplyr::mutate(treatment = case_match(Plot,
     "Biochar" ~ "b",
@@ -111,6 +136,7 @@ comm16 <- comm_16_wide %>%
   as.data.frame() %>%
   tibble::column_to_rownames("row"); comm16 
 
+# veg comm 2023 =========================================
 comm_long <- readxl::read_xlsx("data/church_park_cover.xlsx") %>%
   pivot_longer(cols = names(.)[2:length(.)],values_drop_na = T) %>%
   tidyr::separate(name, c("block", "plot", "quadrat"), sep = "_") %>%
@@ -137,7 +163,7 @@ comm <- comm_wide %>%
   as.data.frame() %>%
   tibble::column_to_rownames("row"); comm 
 
-# both years joined
+# both years joined ============================================================
 comm_both <- comm_long %>%
   mutate(year = "2023") |>
   bind_rows(comm_16_long %>%
@@ -177,3 +203,20 @@ comm_both <- comm_long %>%
   dplyr::select(-block, -treatment, -year) %>%
   as.data.frame() %>%
   tibble::column_to_rownames("row")
+
+# veg 2023 quadrat level =======================================================
+
+comm_wide_q <- comm_long %>%
+  group_by(block, treatment, quadrat, species) %>%
+  summarise(cover = sum(value)/2) %>% # just doing mean does not work
+  ungroup() %>%
+  pivot_wider(id_cols = c(block, treatment, quadrat), 
+              names_from = species, 
+              values_fill = 0,
+              values_from = cover); comm_wide_q
+
+comm_q <- comm_wide_q %>%
+  mutate(row = str_c(block, treatment, quadrat)) %>%
+  dplyr::select(-block, -treatment, -quadrat) %>%
+  as.data.frame() %>%
+  tibble::column_to_rownames("row"); comm_q

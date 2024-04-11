@@ -1,13 +1,16 @@
 source("R/a_church_data_prep.R")
 
 library(Hmsc)
+library(gghmsc)
 
 # load wide community data
-Y <- comm
+Y <- comm_q
 # load ancillary data
 
 XData <- sites_w_23_soil |>
-  mutate_if(is.character, as.factor)
+  mutate_if(is.character, as.factor) |>
+  expand_grid(quadrat = c('q1', 'q2')) |>
+  mutate(quadrat = as.factor(quadrat))
 
 # model formula
 
@@ -19,6 +22,7 @@ XFormula <- ~
   soil_p_h +
   doc_mg_g +
   percent_sand_0to5 +
+  percent_clay_0to5 +
   nh4_n_mg_g +
   no3_n_mg_g +
   na_mg_g +
@@ -31,7 +35,10 @@ XFormula <- ~
   shannon_bacteria_15 + 
   shannon_bacteria_5 +
   shannon_fungi_5 +
-  shannon_fungi_15
+  shannon_fungi_15 +
+  slope +
+  folded_aspect +
+  twi
 
 # random level setup
 
@@ -74,8 +81,6 @@ hmsc_file <- str_c("data/hmsc/hmsc_probit",
 
 # run hmsc =====================================================================
 
-# Sodium by treatment?
-
 t0 <- Sys.time()
 print(t0)
 if(!dir.exists("data/hmsc")) dir.create("data/hmsc")
@@ -90,13 +95,12 @@ if(!file.exists(hmsc_file)){
 }else{load(hmsc_file)}
 
 # visualize ===========
-library(gghmsc)
 vp_cols <- c(
   RColorBrewer::brewer.pal(9, "YlOrRd"),
   RColorBrewer::brewer.pal(8, "Blues")[c(1:4)],
   RColorBrewer::brewer.pal(5, "Greys")[c(3,4)],
   RColorBrewer::brewer.pal(8, "Blues")[c(5:8)],
-  RColorBrewer::brewer.pal(3, "Purples")
+  RColorBrewer::brewer.pal(6, "Purples")
 )
 
 load("data/hmsc/hmsc_probit_15K_iterations.rda")
