@@ -1,4 +1,9 @@
+source("R/a_church_data_prep.R")
+
 # nmds/pca of predictors
+
+
+
 # figure out predictors
 # visulaization of predictors
 # get rid of highly correlated predictors

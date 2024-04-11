@@ -99,7 +99,9 @@ vp_cols <- c(
   RColorBrewer::brewer.pal(3, "Purples")
 )
 
-gghmsc::gghmsc_convergence(m)
-gghmsc::gghmsc_vp(m, cols = vp_cols)
-gghmsc::gghmsc_beta(m)
-gghmsc::gghmsc_omega(m)
+load("data/hmsc/hmsc_probit_15K_iterations.rda")
+
+gghmsc::gghmsc_convergence(m) |> ggsave(filename = "out/church_converge.png")
+gghmsc::gghmsc_vp(m, cols = vp_cols)|> ggsave(filename = "out/church_vp.png")
+gghmsc::gghmsc_beta(m)|> ggsave(filename = "out/church_beta.png")
+gghmsc::gghmsc_omega(m)|> ggsave(filename = "out/chuech_omega.png")

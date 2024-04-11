@@ -1,4 +1,9 @@
 # microbe data
+
+# group by phylum/class?
+# fungal functional traits by plots
+# add in mulch/biomass cover as predictors
+
 library(tidyverse)
 library(vegan)
 library(topomicro)

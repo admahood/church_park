@@ -79,7 +79,8 @@ sites_w_23_soil <-
   mutate(bt = str_c(block, treatment)) |>
   left_join(bacteria_div) |>
   left_join(fungi_div) |>
-  tibble::column_to_rownames("bt") 
+  tibble::column_to_rownames("bt") |>
+  mutate(treatment = treatment |> str_replace_all("c", "0"))
 
 # veg community 
 comm_16_long <- readxl::read_xlsx("data/Church Park Botany 2016_ccr.xlsx", sheet = "botany2016") |>
