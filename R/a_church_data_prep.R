@@ -37,48 +37,48 @@ soil_23 <- read_csv('data/cp_soil_nutrients_almModified.xlsx - Sheet1.csv') |>
   dplyr::select(-blk, -trt)  ; glimpse(soil_23)
 
 # ================================
-soil_pca <- prcomp(soil_23[,3:20], scale = T, center = T)
-round((soil_pca$sdev^2 / sum(soil_pca$sdev^2))*100, 2)
-biplot(soil_pca)
-
-rotation = as_tibble(soil_pca$rotation, rownames = 'row') 
-
-soil_23$PC1 <- soil_pca$x[,1]
-soil_23$PC2 <- soil_pca$x[,2]
-
-ggplot(soil_23, aes(color=depth, x=PC1, y=PC2)) +
-  geom_point() 
-library(ggrepel)
-ggplot(soil_23, aes(x=PC1, y=PC2)) +
-  geom_point(size=3, aes(color=treatment)) +
-  facet_wrap(~depth) +
-  stat_ellipse(aes(color = treatment)) +
-  geom_text_repel(data = rotation, aes(x=PC1*10, y=PC2*10, label = row))
-
-##
-
-soil5 <- soil_23 |> filter(depth == "5") |> mutate(soil_p_h = soil_p_h * -1)
-
-soil_pca <- prcomp(soil5[,3:20], scale = T, center = T)
-round((soil_pca$sdev^2 / sum(soil_pca$sdev^2))*100, 2)
-biplot(soil_pca)
-
-rotation = as_tibble(soil_pca$rotation, rownames = 'row') 
-
-soil5$PC1 <- soil_pca$x[,1]
-soil5$PC2 <- soil_pca$x[,2]
-
-library(ggrepel)
-ggplot(soil5, aes(x=PC1, y=PC2)) +
-  geom_point(size=3, aes(color=treatment)) +
-  facet_wrap(~depth) +
-  stat_ellipse(aes(color = treatment)) +
-  geom_text_repel(data = rotation, aes(x=PC1*10, y=PC2*10, label = row)) +
-  theme_bw()
-ggsave("out/soil_pca_0-5.png", width = 7, height=7, bg='white')
-
-ggplot(sites_w_23_soil, aes(x=tdn_mg_g, y=shannon_fungi_5)) +
-  geom_point()
+# soil_pca <- prcomp(soil_23[,3:20], scale = T, center = T)
+# round((soil_pca$sdev^2 / sum(soil_pca$sdev^2))*100, 2)
+# biplot(soil_pca)
+# 
+# rotation = as_tibble(soil_pca$rotation, rownames = 'row') 
+# 
+# soil_23$PC1 <- soil_pca$x[,1]
+# soil_23$PC2 <- soil_pca$x[,2]
+# 
+# ggplot(soil_23, aes(color=depth, x=PC1, y=PC2)) +
+#   geom_point() 
+# library(ggrepel)
+# ggplot(soil_23, aes(x=PC1, y=PC2)) +
+#   geom_point(size=3, aes(color=treatment)) +
+#   facet_wrap(~depth) +
+#   stat_ellipse(aes(color = treatment)) +
+#   geom_text_repel(data = rotation, aes(x=PC1*10, y=PC2*10, label = row))
+# 
+# ##
+# 
+# soil5 <- soil_23 |> filter(depth == "5") |> mutate(soil_p_h = soil_p_h * -1)
+# 
+# soil_pca <- prcomp(soil5[,3:20], scale = T, center = T)
+# round((soil_pca$sdev^2 / sum(soil_pca$sdev^2))*100, 2)
+# biplot(soil_pca)
+# 
+# rotation = as_tibble(soil_pca$rotation, rownames = 'row') 
+# 
+# soil5$PC1 <- soil_pca$x[,1]
+# soil5$PC2 <- soil_pca$x[,2]
+# 
+# library(ggrepel)
+# ggplot(soil5, aes(x=PC1, y=PC2)) +
+#   geom_point(size=3, aes(color=treatment)) +
+#   facet_wrap(~depth) +
+#   stat_ellipse(aes(color = treatment)) +
+#   geom_text_repel(data = rotation, aes(x=PC1*10, y=PC2*10, label = row)) +
+#   theme_bw()
+# ggsave("out/soil_pca_0-5.png", width = 7, height=7, bg='white')
+# 
+# ggplot(sites_w_23_soil, aes(x=tdn_mg_g, y=shannon_fungi_5)) +
+#   geom_point()
 
 
 # =============================
@@ -156,11 +156,11 @@ nitrifier_binary_matrix_5 <-
 
 nitrifier_traits <-
   nitrifier_input |> dplyr::select(dummy_name, full_taxonomy_string, family)
-
-
-summary(nitrifier_binary_matrix)
-colSums(nitrifier_binary_matrix)
-rowSums(nitrifier_binary_matrix)
+# 
+# 
+# summary(nitrifier_binary_matrix)
+# colSums(nitrifier_binary_matrix)
+# rowSums(nitrifier_binary_matrix)
 
 # microbial diversity 
 
@@ -365,7 +365,7 @@ gc16 <- readxl::read_xlsx("data/Church Park Botany 2016_ccr.xlsx", sheet = "grou
                 quadrat = str_c("q", quadrat),
   block = str_c("b", block)) |>
   dplyr::select(-plot, -moss_lichen) |>
-  dplyr::rename(root_stump = other_root_stump) |>
+  dplyr::rename(root_stump = other_root_stump, cwd_coarse = cwd_course) |>
   dplyr::mutate(sample_year = 2016);gc16
 
 gc_diff <- dplyr::bind_rows(gc16, gc23) |>
@@ -378,12 +378,20 @@ gc_diff <- dplyr::bind_rows(gc16, gc23) |>
   mutate(diff = `2023` - `2016`) 
 
 gc_diff |>
+  filter(!name %in% c("root_stump", "cwd_coarse", "cwd_fine", "basal_live_plant")) |>
   pivot_longer(-c(block, treatment, name), names_to = 'year') |>
   filter(year != "diff") |>
   mutate(treatment = str_replace_all(treatment, "c", "0")) |>
   ggplot(aes(y=name, x=value, fill = year)) +
   geom_boxplot() +
-  facet_wrap(~treatment)
+  facet_wrap(~treatment, nrow=1, scales = 'free_x') +
+  theme_bw() +
+  theme(legend.position = c(1,0),
+        legend.justification = c(1,0),
+        axis.title = element_blank(),
+        legend.background = element_rect(color = "black"))
+
+ggsave("out/ground_cover_differences.png", bg='white', width=9, height=5)
 
 sort(names(gc16));sort(names(gc23))
 
