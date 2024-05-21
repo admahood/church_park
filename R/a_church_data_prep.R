@@ -213,6 +213,8 @@ sites_w_23_soil <-
   left_join(funguild_wider) |>
   arrange(block, treatment)
 
+# write_csv(sites_w_23_soil, "data/sites_23_w_soil.csv")
+
 # veg community 2016 =============================================
 comm_16_long <- readxl::read_xlsx("data/Church Park Botany 2016_ccr.xlsx", sheet = "botany2016") |>
   dplyr::mutate(treatment = case_match(Plot,
