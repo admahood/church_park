@@ -405,3 +405,66 @@ ggplot(gc16, aes(x=treatment, y = value)) +
   geom_boxplot() +
   facet_wrap(~category, scales = "free")
 
+gc_by_plot_23 <- gc23 |>
+  group_by(block, treatment) |>
+  summarise(litter_duff = mean(litter_duff),
+            rock = mean(rock_1cm),
+            bare = mean(bare_soil_gravel),
+            wood_mulch = mean(wood_mulch),
+            biochar = mean(biochar)) |>
+  ungroup() |>
+  mutate(treatment = ifelse(treatment == "c", "0", treatment))
+
+gc_by_plot_16 <- gc16 |>
+  group_by(block, treatment) |>
+  summarise(litter_duff = mean(litter_duff),
+            rock = mean(rock_1cm),
+            bare = mean(bare_soil_gravel),
+            wood_mulch = mean(wood_mulch),
+            biochar = mean(biochar))|>
+  ungroup() |>
+  mutate(treatment = ifelse(treatment == "c", "0", treatment))
+
+# fungal and bacterial communities
+
+fungi <- readxl::read_xlsx("data/Church_Park_Microbial_Data.xlsx", sheet =2)%>%
+  pivot_longer(cols = names(.)[2:ncol(.)]) %>%
+  pivot_wider(id_cols = name, names_from = taxonomy, values_from = value, values_fn = sum)|>
+  filter(str_sub(name,1,3) != "C_K", !str_detect(name,"\\.2"), !str_detect(name, "_15$")) |>
+  mutate(name = str_replace_all(name,"B_M", "BM"))|>
+  tibble::column_to_rownames("name") |>
+  vegan::decostand("hellinger")
+
+bacteria <- readxl::read_xlsx("data/Church_Park_Microbial_Data.xlsx", sheet =4)%>%
+  pivot_longer(cols = names(.)[2:ncol(.)]) %>%
+  pivot_wider(id_cols = name, names_from = taxonomy, values_from = value, values_fn = sum)|>
+  filter(str_sub(name,1,3) != "C_K", !str_detect(name,"\\.2")
+         ,!str_detect(name, "_15")
+  ) |>
+  mutate(name = str_replace_all(name,"B_M", "BM"))|>
+  tibble::column_to_rownames("name") |>
+  vegan::decostand("hellinger")
+
+pcab <- vegan::rda(bacteria) |>
+  vegan::scores() |>
+  purrr::pluck(2) |>
+  tibble::as_tibble(rownames = "name") |>
+  dplyr::mutate(name = str_to_lower(name)) |>
+  tidyr::separate(name, into = c("study", "block", "treatment", "plot", 'depth')) |>
+  dplyr::select(pcab=PC1, block, treatment, PC2)|>
+  ungroup() |>
+  mutate(treatment = ifelse(treatment == "ctl", "0", treatment))
+pcaf <- vegan::rda(fungi)|>
+  vegan::scores() |>
+  purrr::pluck(2) |>
+  tibble::as_tibble(rownames = "name") |>
+  dplyr::mutate(name = str_to_lower(name)) |>
+  tidyr::separate(name, into = c("study", "block", "treatment", "plot", 'depth')) |>
+  dplyr::select(pcaf = PC1, block, treatment)|>
+  ungroup() |>
+  mutate(treatment = ifelse(treatment == "ctl", "0", treatment))
+
+
+ggplot(pcab, aes(pcab, PC2,color = treatment)) +
+  geom_point(aes(), size=3) +
+  stat_ellipse()

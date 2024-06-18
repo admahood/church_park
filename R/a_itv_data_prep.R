@@ -10,11 +10,11 @@ if(!file.exists("data/church_traits.csv")){
   lapply(FUN = read_csv)
 
   lut_trt <- c("1A" = "m","1B" = "m","1C" = "bm","1D" = "b",
-               "2A" = "bm","2B" = "b","2C" = "m","2D" = "c",
-               "3A" = "m","3B" = "c","3C" = "bm","3D" = "b",
-               "4A" = "b","4B" = "bm","4C" = "c","4D" = "m",
-               "5A" = "b","5B" = "m","5C" = "c","5D" = "bm",
-               "6A" = "c","6B" = "b","6C" = "m","6D" = "bm")
+               "2A" = "bm","2B" = "b","2C" = "m","2D" = "0",
+               "3A" = "m","3B" = "0","3C" = "bm","3D" = "b",
+               "4A" = "b","4B" = "bm","4C" = "0","4D" = "m",
+               "5A" = "b","5B" = "m","5C" = "0","5D" = "bm",
+               "6A" = "0","6B" = "b","6C" = "m","6D" = "bm")
   
   la_church <- ijc %>%
     bind_rows() %>%
@@ -79,54 +79,54 @@ if(!file.exists("data/church_traits.csv")){
            ldmc = (dry_weight_g*1000)/wet_weight_g) %>%
     dplyr::select(plot, individual, height_cm, sla, ldmc, species_full, lma) %>%
     bind_rows(d_church_carex) %>%
-    mutate(trt = lut_trt[plot],
-           block = str_sub(plot, 1,1))
+    mutate(treatment = lut_trt[plot],
+           block = str_c("b", str_sub(plot, 1,1)))
   
   write_csv(d_church, "data/church_traits.csv")}else{
   d_church <- read_csv("data/church_traits.csv")
 }
 
 # church park visualization ====================================================
-
-p1 <- ggplot(d_church, aes(x = sla , fill = species_full)) +
-  geom_density(alpha=0.5) +
-  geom_rug(aes(color = species_full)) +
-  guides(color = "none")
-
-p2 <- ggplot(d_church, aes(x = ldmc , fill = species_full)) +
-  geom_density(alpha=0.5) +
-  geom_rug(aes(color = species_full)) +
-  guides(color = "none")
-
-p3 <- ggplot(d_church, aes(x = height_cm , fill = species_full)) +
-  geom_density(alpha=0.5) +
-  geom_rug(aes(color = species_full)) +
-  guides(color = "none")
-
-ggpubr::ggarrange(p1, p2, p3, nrow = 1, ncol=3, common.legend = TRUE) %>%
-  ggsave(plot = ., filename = "out/density_plots.png", width =9, height =5)
-
-ggplot(d_church, aes(x = height_cm, y=ldmc, color = species_full)) +
-  geom_point()
-ggplot(d_church, aes(x = height_cm, y=sla, color = species_full)) +
-  geom_point()
-ggplot(d_church, aes(x = sla, y=ldmc, color = species_full)) +
-  geom_point() +
-  ggtitle("LDMC tends to be inversely related to SLA and Leaf thickness (P-H 2013).",
-          "species with low LDMC tend to be associated with productive, often highly disturbed environments.")
-
-p1 <- ggplot(d_church, aes(x = trt, y=sla, fill = trt)) +
-  geom_boxplot() +
-  facet_wrap(~species_full, scales="free") +
-  theme(legend.position = "none");p1
-p2 <- ggplot(d_church, aes(x = trt, y=ldmc, fill = trt)) +
-  geom_boxplot() +
-  facet_wrap(~species_full, scales="free") +
-  theme(legend.position = "none")
-p3 <- ggplot(d_church, aes(x = trt, y=height_cm, fill = trt)) +
-  geom_boxplot() +
-  facet_wrap(~species_full, scales="free") +
-  theme(legend.position = "none")
-
-ggpubr::ggarrange(p1, p2, p3, nrow = 3, ncol=1, common.legend = TRUE) %>%
-  ggsave(plot = ., filename = "out/trait_x_treatment.png", width =7, height =10)
+# 
+# p1 <- ggplot(d_church, aes(x = sla , fill = species_full)) +
+#   geom_density(alpha=0.5) +
+#   geom_rug(aes(color = species_full)) +
+#   guides(color = "none")
+# 
+# p2 <- ggplot(d_church, aes(x = ldmc , fill = species_full)) +
+#   geom_density(alpha=0.5) +
+#   geom_rug(aes(color = species_full)) +
+#   guides(color = "none")
+# 
+# p3 <- ggplot(d_church, aes(x = height_cm , fill = species_full)) +
+#   geom_density(alpha=0.5) +
+#   geom_rug(aes(color = species_full)) +
+#   guides(color = "none")
+# 
+# ggpubr::ggarrange(p1, p2, p3, nrow = 1, ncol=3, common.legend = TRUE) %>%
+#   ggsave(plot = ., filename = "out/density_plots.png", width =9, height =5)
+# 
+# ggplot(d_church, aes(x = height_cm, y=ldmc, color = species_full)) +
+#   geom_point()
+# ggplot(d_church, aes(x = height_cm, y=sla, color = species_full)) +
+#   geom_point()
+# ggplot(d_church, aes(x = sla, y=ldmc, color = species_full)) +
+#   geom_point() +
+#   ggtitle("LDMC tends to be inversely related to SLA and Leaf thickness (P-H 2013).",
+#           "species with low LDMC tend to be associated with productive, often highly disturbed environments.")
+# 
+# p1 <- ggplot(d_church, aes(x = trt, y=sla, fill = trt)) +
+#   geom_boxplot() +
+#   facet_wrap(~species_full, scales="free") +
+#   theme(legend.position = "none");p1
+# p2 <- ggplot(d_church, aes(x = trt, y=ldmc, fill = trt)) +
+#   geom_boxplot() +
+#   facet_wrap(~species_full, scales="free") +
+#   theme(legend.position = "none")
+# p3 <- ggplot(d_church, aes(x = trt, y=height_cm, fill = trt)) +
+#   geom_boxplot() +
+#   facet_wrap(~species_full, scales="free") +
+#   theme(legend.position = "none")
+# 
+# ggpubr::ggarrange(p1, p2, p3, nrow = 3, ncol=1, common.legend = TRUE) %>%
+#   ggsave(plot = ., filename = "out/trait_x_treatment.png", width =7, height =10)

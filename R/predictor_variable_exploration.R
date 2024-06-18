@@ -7,7 +7,8 @@ sites_w_23_soil |>
   dplyr::select(-aspect, -elevation, -flowdir, -folded_aspect,
                 -latitude, -longitude, -twi, -TPI, -TRI,
                 -slope, -starts_with(c("amf", "shannon", "simpson", "species", "unassigned")),
-                -starts_with(c("percent", "other", "plant_pathogen", "ecto"))) |>
+                -starts_with(c("percent", "other"#, "plant_pathogen", "ecto"
+                               ))) |>
   pivot_longer(-c(block, plot, treatment, sample_id)) |>
   ggplot(aes(x=treatment, y = value, fill=treatment)) +
   geom_boxplot(outliers = F) +
@@ -19,10 +20,7 @@ ggsave("out/soil_variables.png", width=9, height=6, bg="white")
 
 # block effects?
 sites_w_23_soil |>
-  # dplyr::select(-aspect, -elevation, -flowdir, -folded_aspect,
-  #               -latitude, -longitude, -twi, -TPI, -TRI,
-  #               -slope,
-  #               -starts_with("percent")) |>
+  dplyr::select(-starts_with("percent")) |>
   pivot_longer(-c(block, plot, treatment, sample_id)) |>
   ggplot(aes(x=block, y = value)) +
   geom_boxplot() +
