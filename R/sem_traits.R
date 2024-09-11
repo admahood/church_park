@@ -14,8 +14,21 @@ d <- d_church |>
   dplyr::rename(vwc = mean_vwc, mulch = wood_mulch) |> 
   mutate_if(is.numeric, datawizard::standardise) |>
   mutate_if(is.character, as.factor) |>
-  left_join(pcab) |>
-  left_join(pcaf)
+  left_join(nitrifiers) |>
+  left_join(pcaf) |>
+  left_join(nitrifiers) |>
+  left_join(discriminant_taxa) |>
+  left_join(soil_23_tf) |>
+  mutate(din_tf = ammonium + nitrate) |>
+  dplyr::rename(DOC = dissolved_organic_carbon,
+                PPF = plant_pathogen_5,
+                Aspect = folded_aspect,
+                DIN = din_tf,
+                TDN = dissolved_nitrogen,
+                EMF = ectomycorrhizae_5,
+                pH = soil_p_h,
+                cations = cation_sum,
+                sand = percent_sand_0to5)
 summary(d)
 
 glimpse(d)
@@ -43,7 +56,7 @@ moda <- 'sla ~  doc_mg_g  + folded_aspect+mulch + din_mg_g + soil_p_h + height_c
         tdn_mg_g ~ mulch + biochar + folded_aspect + din_mg_g + soil_p_h + ca_mg_g  + vwc
         ca_mg_g ~ mulch + biochar + vwc + doc_mg_g + folded_aspect
         soil_p_h ~ biochar + vwc + folded_aspect + ca_mg_g#+ tdn_mg_g mulch + 
-        din_mg_g ~ mulch + biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + pcab 
+        din_mg_g ~ mulch + biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + nitrifiers 
         doc_mg_g ~ mulch + biochar + vwc + folded_aspect + soil_p_h + tdn_mg_g+ pcaf# + shannon_bacteria_5
         height_cm ~ vwc +  doc_mg_g + tdn_mg_g + ca_mg_g +  soil_p_h + mulch + pcaf
         #shannon_bacteria_5 ~ vwc + mulch + biochar + soil_p_h
@@ -63,22 +76,32 @@ lavaan::fitMeasures(fit) %>%
 
 # oreochrysum ==========
 
-modo <-'ldmc ~  doc_mg_g  + folded_aspect + din_mg_g + soil_p_h + pcaf + vwc
-        sla ~  doc_mg_g  + folded_aspect+ din_mg_g + soil_p_h+ tdn_mg_g
-        vwc ~ mulch  + folded_aspect + biochar + percent_sand_0to5 + twi + ca_mg_g
-         pcab ~ ca_mg_g + mulch + tdn_mg_g+ percent_sand_0to5 + folded_aspect + twi
-         pcaf ~  mulch + din_mg_g + ca_mg_g + tdn_mg_g + soil_p_h
-         tdn_mg_g ~ twi + mulch + biochar + folded_aspect + soil_p_h + ca_mg_g  + vwc + pcab + pcaf + doc_mg_g+ percent_sand_0to5 + din_mg_g
-         ca_mg_g ~ biochar + vwc + twi  + pcab
-         soil_p_h ~ twi + biochar + vwc + folded_aspect + ca_mg_g+doc_mg_g#+ tdn_mg_g mulch + 
-         din_mg_g ~ biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + tdn_mg_g + pcab + pcaf + percent_sand_0to5 + twi
-         doc_mg_g ~ mulch + biochar  + folded_aspect  + tdn_mg_g+ percent_sand_0to5 + twi + ca_mg_g
-         sla ~~ vwc
-         ' 
-fito <- lavaan::sem(modo, data = d |> filter(species_full == "Oreochrysum parryi"))
-fito
 
-modificationindices(fito) |> arrange(desc(mi)) |> head()
+dd <- d |>
+  dplyr::select(-sla, -lma) |> filter(species_full == "Oreochrysum parryi")
+# lm(ldmc ~ Aspect + din_tf + nitrifiers + ectomycorrhizae_5 + plant_pathogen_5 + Proteobacteria, 
+#    data = dd, na.action = na.fail) |> MuMIn::dredge()
+
+modo <-'ldmc ~ Aspect + DIN + pH + EMF
+        sla ~ Aspect + DIN + nitrifiers + PPF + Proteobacteria + TDN + vwc + cations + sand
+        Proteobacteria ~ mulch + vwc + pH + biochar + Aspect + nitrifiers + twi + sand
+        nitrifiers ~ mulch + Aspect + sand + cations + biochar + PPF
+        vwc ~ mulch  + Aspect + biochar + sand + twi + cations
+         EMF ~ pH + mulch + TDN + sand  + nitrifiers + cations
+         PPF ~ mulch + TDN + sand + Aspect + twi  
+         TDN ~ twi + mulch + biochar + Aspect + pH + cations  + vwc + nitrifiers +  EMF + PPF + DOC+ sand + DIN
+         cations ~ biochar + vwc + twi  + nitrifiers + pH 
+         pH ~ mulch + vwc + cations+DOC#+ TDN mulch + 
+         DIN ~ biochar + vwc +Proteobacteria + Aspect + pH + cations + TDN + nitrifiers +  EMF + PPF + sand + twi
+         DOC ~ biochar  + TDN + sand + cations + PPF + Proteobacteria 
+         # sla ~~ vwc
+         sla ~~ TDN
+         ' 
+fito <- lavaan::sem(modo, data = d |> filter(species_full == "Oreochrysum parryi") |> datawizard::standardise())
+fito
+ggsem(fito, layout = 'manual', layout_df = layout_df)
+
+modificationindices(fito) |> arrange(desc(mi)) |> filter(mi>2)
 summary(fito, rsquare=T, fit.measures =T)
 resid(fito, "cor")$cov
 lavaan::fitMeasures(fito) %>%
@@ -86,20 +109,25 @@ lavaan::fitMeasures(fito) %>%
   as_tibble(rownames = "metric") %>%
   filter(metric %in% c("tli", "cfi", "rmsea", "srmr"))
 
-layout_df <- ggsem::random_layout(fito) |>
+layout_df <- ggsem::random_layout(fitc) |>
   mutate(x = case_match(metric,
                         'ldmc' ~ 1,
                         "sla" ~ 1,
-                        'pcaf' ~.45,
-                        'tdn_mg_g' ~ .25,
+                        'EMF' ~.45,
+                        'PPF' ~ .45,
+                        'Proteobacteria' ~ .45,
+                        'Verrucomicrobiota' ~ .45,
+                        'Chloroflexi' ~ .45,
+                        
+                        'TDN' ~ .25,
                         'vwc' ~ .5,
-                        'pcab' ~ .45,
-                        'ca_mg_g' ~ .75, 
-                        'soil_p_h' ~ .75,
-                        "din_mg_g" ~ .75,
-                        'doc_mg_g' ~ .5,
-                        'percent_sand_0to5' ~ 0,
-                        'folded_aspect' ~ 0,
+                        'nitrifiers' ~ .45,
+                        'cations' ~ .75, 
+                        'pH' ~ .75,
+                        "DIN" ~ .75,
+                        'DOC' ~ .5,
+                        'sand' ~ 0,
+                        'Aspect' ~ 0,
                         'mulch' ~ 0,
                         'twi' ~ 0,
                         'biochar'~ 0),
@@ -107,25 +135,31 @@ layout_df <- ggsem::random_layout(fito) |>
                         'ldmc' ~ .75,
                         "sla" ~ 0.25,
                         'vwc' ~ 1,
-                        'pcaf' ~.7,
-                        'tdn_mg_g' ~ .5,
-                        'pcab' ~ .25,
-                        'ca_mg_g' ~ .8, 
-                        'soil_p_h' ~ .25,
-                        "din_mg_g" ~ .5,
-                        'doc_mg_g' ~ 0,
-                        'folded_aspect' ~ 0,
+                        'EMF' ~.75,
+                        'PPF' ~ .6,
+                        'nitrifiers' ~ .5,
+                        'Proteobacteria' ~ .25,
+                        'Verrucomicrobiota' ~ .15,
+                        'Chloroflexi' ~ .35,
+                        'TDN' ~ .5,
+                        'nitrifiers' ~ .25,
+                        'cations' ~ .8, 
+                        'pH' ~ .25,
+                        "DIN" ~ .5,
+                        'DOC' ~ 0,
+                        'Aspect' ~ 0,
                         'mulch' ~ .5,
                         'twi' ~ .25,
-                        'percent_sand_0to5' ~ .75,
+                        'sand' ~ .75,
                         'biochar'~ 1))
 
 lut_names <- c("LDMC", "SLA", "VWC", "Bacteria", "Fungi", "TDN", "Ca",
                       "Soil pH", "DIN", "DOC", "Aspect", "%Sand", "Mulch", "Biochar", "TWI" )
 names(lut_names) <- layout_df$metric
-layout_df <- layout_df |> mutate(new_node_names = lut_names[metric])
-po <- ggsem(fito, layout_df = layout_df, layout = 'manual', rename_nodes = T,
-            new_node_names = lut_names, show_legend = TRUE,
+layout_df <- layout_df ###|> mutate(new_node_names = lut_names[metric])
+po <- ggsem(fito, layout_df = layout_df, layout = 'manual',# rename_nodes = T,
+            #new_node_names = lut_names, 
+            show_legend = TRUE,
             labels = F, cols = c("transparent", "#E41A1C", "#377EB8"),
             title = paste("<i>Oreochrysum parryi</i>, p =", 
                           round(fito@test$standard$pvalue,2))) +
@@ -135,7 +169,7 @@ po <- ggsem(fito, layout_df = layout_df, layout = 'manual', rename_nodes = T,
 
 po1 <- ggsem(fito, layout_df = layout_df, layout = 'manual', rename_nodes = T,
             new_node_names = lut_names, show_legend = TRUE, 
-            exclude = c("pcab", "vwc", "biochar", "tdn_mg_g", "ca_mg_g"),
+            exclude = c("nitrifiers", "vwc", "biochar", "tdn_mg_g", "ca_mg_g"),
             labels = F, cols = c("transparent", "#E41A1C", "#377EB8"),
             title = paste("<i>Oreochrysum parryi</i>, p =", 
                           round(fito@test$standard$pvalue,2))) +
@@ -148,21 +182,27 @@ ggsave("out/oreo_sem.png", bg = "white")
 
 # vaccinium ===============
 
-modv<-'ldmc ~  doc_mg_g  + folded_aspect + din_mg_g + soil_p_h + pcaf + vwc + twi + ca_mg_g 
-        sla ~  vwc + doc_mg_g  + folded_aspect+ din_mg_g + soil_p_h+ tdn_mg_g + percent_sand_0to5 + pcaf + ca_mg_g 
-        vwc ~ mulch  + folded_aspect + biochar + percent_sand_0to5 + twi + ca_mg_g
-         pcab ~ ca_mg_g + mulch + tdn_mg_g+ percent_sand_0to5 + folded_aspect 
-         pcaf ~  mulch + ca_mg_g + tdn_mg_g + soil_p_h + biochar + folded_aspect
-         tdn_mg_g ~ twi + mulch + biochar + folded_aspect + soil_p_h + ca_mg_g  + vwc + pcab + pcaf + doc_mg_g+ percent_sand_0to5 + din_mg_g
-         ca_mg_g ~ biochar + vwc  + pcab + folded_aspect + percent_sand_0to5
-         soil_p_h ~ twi + biochar + vwc + folded_aspect + ca_mg_g+doc_mg_g#+ tdn_mg_g mulch + 
-         din_mg_g ~ biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + tdn_mg_g + pcab + pcaf + percent_sand_0to5 + twi
-         doc_mg_g ~ mulch + biochar  + folded_aspect  + tdn_mg_g+ percent_sand_0to5 + twi + ca_mg_g
-         ' 
+modv<-'ldmc ~ Aspect + DIN + pH + EMF + twi + Proteobacteria + nitrifiers + cations
+        sla ~ Aspect + DIN + nitrifiers + PPF + Proteobacteria + TDN + vwc + cations + sand + EMF
+        Proteobacteria ~ mulch + vwc + pH + biochar + Aspect + nitrifiers + twi + sand
+        nitrifiers ~ mulch + Aspect + sand + cations + biochar + PPF
+        vwc ~ mulch  + Aspect + biochar + sand + twi + cations
+         EMF ~ pH + mulch + TDN + sand  + nitrifiers + cations
+         PPF ~ mulch + TDN + sand + Aspect + twi  
+         TDN ~ twi + mulch + biochar + Aspect + pH + cations  + vwc + nitrifiers +  EMF + PPF + DOC+ sand + DIN
+         cations ~ biochar + vwc + twi  + nitrifiers + pH 
+         pH ~ mulch + vwc + cations+DOC#+ TDN mulch + 
+         DIN ~ biochar + vwc +Proteobacteria + Aspect + pH + cations + TDN + nitrifiers +  EMF + PPF + sand + twi
+         DOC ~ biochar  + TDN + sand + cations + PPF + Proteobacteria 
+         # sla ~~ vwc
+         sla ~~ TDN
+         '  
 
-fitv <- lavaan::sem(modv, data = d |> filter(species_full == "Vaccinium sp"))
+fitv <- lavaan::sem(modv, data = d |> filter(species_full == "Vaccinium sp") |> datawizard::standardise())
 fitv
-modificationindices(fitv) |> arrange(desc(mi)) 
+ggsem(fitv, layout = 'manual', layout_df = layout_df)
+
+modificationindices(fitv) |> arrange(desc(mi)) |> filter(mi >2)
 summary(fitv, rsquare=T, fit.measures =T)
 resid(fitv, "cor")$cov
 
@@ -175,7 +215,7 @@ ggsave("out/vaccinium_sem.png", bg = "white")
 
 pv1<- ggsem(fitv, layout_df = layout_df, layout = 'manual',rename_nodes = T,
            labels = FALSE,
-           exclude = c("din_mg_g", "mulch", "tdn_mg_g", "pcab"),
+           exclude = c("din_mg_g", "mulch", "tdn_mg_g", "nitrifiers"),
            cols = c("transparent", "#E41A1C", "#377EB8"), new_node_names = lut_names,
            title = paste("<i>Vaccinium</i> sp., p =", round(fitv@test$standard$pvalue,2))) +
   theme(plot.title = element_markdown());pv1
@@ -184,23 +224,33 @@ pv1<- ggsem(fitv, layout_df = layout_df, layout = 'manual',rename_nodes = T,
 
 # carex =================================
 
-modc <- 'ldmc ~  doc_mg_g  + folded_aspect + din_mg_g + soil_p_h + pcaf + vwc + twi + ca_mg_g + na_mg_g + simpson_fungi_5
-        sla ~  simpson_fungi_5 + vwc + doc_mg_g  + folded_aspect+ din_mg_g + soil_p_h+ tdn_mg_g + percent_sand_0to5 + pcaf + ca_mg_g 
-        vwc ~ mulch  + folded_aspect + biochar + percent_sand_0to5 + twi + ca_mg_g
-         na_mg_g ~ twi + ca_mg_g + tdn_mg_g + folded_aspect
-         pcab ~ ca_mg_g  + tdn_mg_g+ percent_sand_0to5 + folded_aspect 
-         pcaf ~  mulch + ca_mg_g + tdn_mg_g + soil_p_h + biochar + folded_aspect
-         tdn_mg_g ~ simpson_fungi_5 + na_mg_g + twi + mulch + biochar + folded_aspect + soil_p_h + ca_mg_g  + vwc + pcab + pcaf + doc_mg_g+ percent_sand_0to5 + din_mg_g
-         ca_mg_g ~ doc_mg_g + biochar + vwc  + pcab + folded_aspect + percent_sand_0to5
-         soil_p_h ~ percent_sand_0to5 + na_mg_g + twi + biochar + vwc + folded_aspect + ca_mg_g+doc_mg_g#+ tdn_mg_g mulch + 
-         din_mg_g ~ biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + tdn_mg_g + pcab + pcaf + percent_sand_0to5 + twi
-         doc_mg_g ~ din_mg_g + simpson_fungi_5 + mulch + biochar  + folded_aspect  + tdn_mg_g+ percent_sand_0to5 + twi + ca_mg_g
-         ' 
+modc <- 'ldmc ~ EMF + twi + Chloroflexi#i + DIN
+         sla ~ Aspect  + Proteobacteria + TDN + cations + sand + EMF + twi #+ DIN
+         Proteobacteria ~ cations +mulch + vwc + biochar + Aspect + nitrifiers + twi + sand + Chloroflexi + TDN + EMF
+         Chloroflexi ~ vwc + pH  + nitrifiers + twi + sand + TDN + Proteobacteria + cations#+DIN + DOC
+         nitrifiers ~ mulch + biochar
+         vwc ~ mulch  + Aspect + biochar + sand + twi + cations
+         EMF ~ pH + mulch + sand  + nitrifiers + cations + Chloroflexi
+         PPF ~ mulch + TDN + sand + Aspect + twi   #+ DIN + EMF
+         TDN ~ twi + mulch + biochar + Aspect + pH + cations  + vwc + nitrifiers +  EMF + PPF + DOC+ sand #+ DIN
+         cations ~ biochar + vwc + twi  + nitrifiers + pH 
+         pH ~ mulch + vwc + DOC + sand#+ TDN mulch + 
+         # DIN ~ vwc + pH + cations + TDN + nitrifiers +  EMF + PPF + sand + twi   
+         DOC ~ biochar  + TDN + sand + cations + PPF + Chloroflexi   
+         # sla ~~ vwc
+         # sla ~~ TDN
+         ldmc ~~ TDN
+         # Verrucomicrobiota ~~ TDN
+         # Proteobacteria ~~ TDN
+         '  
 
-fitc <- lavaan::sem(modc, data = d |> filter(species_full == "Carex sp"))
+fitc <- lavaan::sem(modc, data = d |> filter(species_full == "Carex sp") |> datawizard::standardise())
 fitc
 
-modificationindices(fitc) |> arrange(desc(mi)) |> head()
+ggsem(fitc, layout = 'manual', layout_df = layout_df
+      )
+
+modificationindices(fitc) |> arrange((mi)) |> filter(mi>2)
 summary(fitc, rsquare=T, fit.measures =T)
 resid(fitc, "cor")$cov
 lavaan::fitMeasures(fitc) %>%
@@ -208,7 +258,7 @@ lavaan::fitMeasures(fitc) %>%
   as_tibble(rownames = "metric") %>%
   filter(metric %in% c("tli", "cfi", "rmsea", "srmr"))
 
-pc <- ggsem(fitc, layout_df = layout_df, layout = 'auto',#rename_nodes = T,
+pc <- ggsem(fitc, layout_df = layout_df, layout = 'manual',#rename_nodes = T,
             labels = FALSE,
             cols = c("transparent", "#E41A1C", "#377EB8"), new_node_names = lut_names,
             title = paste("<i>Carex</i> sp., p =", round(fitc@test$standard$pvalue,2))) +
@@ -216,7 +266,7 @@ pc <- ggsem(fitc, layout_df = layout_df, layout = 'auto',#rename_nodes = T,
 ggsave("out/carex_sem.png", bg = "white")
 
 pc1 <- ggsem(fitc, layout_df = layout_df, layout = 'manual',rename_nodes = T,
-            labels = FALSE, exclude =c(  "folded_aspect" , "vwc","pcab","pcaf","tdn_mg_g","ca_mg_g","soil_p_h",     
+            labels = FALSE, exclude =c(  "folded_aspect" , "vwc","nitrifiers","pcaf","tdn_mg_g","ca_mg_g","soil_p_h",     
                                          "din_mg_g" ,           "biochar"   ),
             cols = c("transparent", "#E41A1C", "#377EB8"), new_node_names = lut_names,
             title = paste("<i>Carex</i> sp., p =", round(fitc@test$standard$pvalue,2))) +
@@ -226,12 +276,12 @@ pc1 <- ggsem(fitc, layout_df = layout_df, layout = 'manual',rename_nodes = T,
 
 # no traits =================
 mod0 <- 'vwc ~ mulch  + folded_aspect + biochar + percent_sand_0to5 + twi
-         pcab ~ vwc + ca_mg_g + mulch + tdn_mg_g+ percent_sand_0to5 + folded_aspect + pcaf + twi
-         pcaf ~ vwc + ca_mg_g + pcab + tdn_mg_g+ percent_sand_0to5 + twi
-         tdn_mg_g ~ twi + mulch + biochar + folded_aspect + soil_p_h + ca_mg_g  + vwc + pcab + pcaf + doc_mg_g+ percent_sand_0to5 + din_mg_g
+         nitrifiers ~ vwc + ca_mg_g + mulch + tdn_mg_g+ percent_sand_0to5 + folded_aspect + pcaf + twi
+         pcaf ~ vwc + ca_mg_g + nitrifiers + tdn_mg_g+ percent_sand_0to5 + twi
+         tdn_mg_g ~ twi + mulch + biochar + folded_aspect + soil_p_h + ca_mg_g  + vwc + nitrifiers + pcaf + doc_mg_g+ percent_sand_0to5 + din_mg_g
          ca_mg_g ~ biochar + vwc + doc_mg_g + folded_aspect + twi + mulch
          soil_p_h ~ twi + biochar + vwc + folded_aspect + ca_mg_g+doc_mg_g#+ tdn_mg_g mulch + 
-         din_mg_g ~ biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + tdn_mg_g + pcab + pcaf + percent_sand_0to5 + twi
+         din_mg_g ~ biochar + vwc + folded_aspect + soil_p_h + ca_mg_g + tdn_mg_g + nitrifiers + pcaf + percent_sand_0to5 + twi
          doc_mg_g ~ mulch + biochar + vwc + folded_aspect + soil_p_h + tdn_mg_g+ percent_sand_0to5 + twi + ca_mg_g
          ' 
 
@@ -364,4 +414,15 @@ tidy(lme_o) |>
   ggtitle("SLA")
 ggsave("out/lmers_sla.png")
 
+
+
+# brms version ============
+library(brms)
+
+bf_l <- bf(ldmc ~ Aspect + DIN + pH + EMF + (1|block))
+bf_p <- bf(pH ~ mulch + vwc + cations+DOC+ (1|block))
+bf_d <- bf(DIN ~ biochar + vwc +Proteobacteria + Aspect + pH + cations + TDN + nitrifiers +  EMF + PPF + sand + twi+ (1|block))
+bf_e <- bf(EMF ~ pH + mulch + TDN + sand  + nitrifiers + cations+ (1|block))                    
+
+brm(bf_l +bf_p + bf_d +bf_e, data = dd, chains =2, cores =2) -> oreo
 

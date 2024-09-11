@@ -35,7 +35,19 @@ soil_23 <- read_csv('data/cp_soil_nutrients_almModified.xlsx - Sheet1.csv') |>
          block = str_c("b", blk),
          depth = as.factor(depth)) |>
   dplyr::select(-blk, -trt)  ; glimpse(soil_23)
+glimpse(soil_23)
 
+soil_23_tf <- readxl::read_xlsx('data/ConsolidatedChurchPark_for_Adam_070824.xlsx') |>
+  dplyr::select(-1) |>
+  dplyr::rename(block = BLK, plot = PlotID, treatment = Trt, depth = Depth) |>
+  janitor::clean_names() |>
+  mutate_if(is.character, str_to_lower) |>
+  dplyr::filter(depth == '0-5') |>
+  dplyr::select(-depth) |>
+  dplyr::mutate(block = str_c('b', block),
+                plot = str_c(block, plot),
+                treatment = str_replace_all(treatment, 'c', '0'))
+glimpse(soil_23_tf)
 # ================================
 # soil_pca <- prcomp(soil_23[,3:20], scale = T, center = T)
 # round((soil_pca$sdev^2 / sum(soil_pca$sdev^2))*100, 2)
@@ -132,30 +144,30 @@ funguild_wider <-  readxl::read_xlsx("data/simplified_FUNguild_ks_2024.xlsx") |>
 
 # nitrifier data
 
-nitrifier_input <- readxl::read_xlsx("data/Nitrifier_Feature_table.xlsx") |>
-  janitor::clean_names() |>
-  pivot_longer(-c(full_taxonomy_string, family)) |>
-  mutate(name = str_replace_all(name, "b_m", "bm") |>
-           str_replace_all("ctl", "0")) |>
-  tidyr::separate(name, into = c("study", "block", "treatment","plot", "depth")) |>
-  dplyr::select(-study, -plot) %>%
-  mutate(dummy_name = 1:nrow(.) |> as.character(),
-         dummy_name = str_c("sp", dummy_name)) |>
-  filter(value > 0)
-  
-nitrifier_binary_matrix_5 <- 
-  nitrifier_input |>
-  filter(depth == 5) |>
-  dplyr::select(-depth) |>
-  arrange(block, treatment) |>
-  mutate(row = str_c(block, "_", treatment),
-         value = ifelse(value > 0, 1, 0)) |>
-  dplyr::select(-full_taxonomy_string, -family, -block, -treatment) |>
-  pivot_wider(names_from = dummy_name, values_from = value, values_fill = 0) |>
-  tibble::column_to_rownames("row")
-
-nitrifier_traits <-
-  nitrifier_input |> dplyr::select(dummy_name, full_taxonomy_string, family)
+# nitrifier_input <- readxl::read_xlsx("data/Nitrifier_Feature_table.xlsx") |>
+#   janitor::clean_names() |>
+#   pivot_longer(-c(full_taxonomy_string, family)) |>
+#   mutate(name = str_replace_all(name, "b_m", "bm") |>
+#            str_replace_all("ctl", "0")) |>
+#   tidyr::separate(name, into = c("study", "block", "treatment","plot", "depth")) |>
+#   dplyr::select(-study, -plot) %>%
+#   mutate(dummy_name = 1:nrow(.) |> as.character(),
+#          dummy_name = str_c("sp", dummy_name)) |>
+#   filter(value > 0)
+#   
+# nitrifier_binary_matrix_5 <- 
+#   nitrifier_input |>
+#   filter(depth == 5) |>
+#   dplyr::select(-depth) |>
+#   arrange(block, treatment) |>
+#   mutate(row = str_c(block, "_", treatment),
+#          value = ifelse(value > 0, 1, 0)) |>
+#   dplyr::select(-full_taxonomy_string, -family, -block, -treatment) |>
+#   pivot_wider(names_from = dummy_name, values_from = value, values_fill = 0) |>
+#   tibble::column_to_rownames("row")
+# 
+# nitrifier_traits <-
+#   nitrifier_input |> dplyr::select(dummy_name, full_taxonomy_string, family)
 # 
 # 
 # summary(nitrifier_binary_matrix)
@@ -464,7 +476,32 @@ pcaf <- vegan::rda(fungi)|>
   ungroup() |>
   mutate(treatment = ifelse(treatment == "ctl", "0", treatment))
 
+nitrifiers <- readxl::read_xlsx('data/NItrifierFeatureTable.xlsx') |>
+  filter(Full_Taxonomy_String == "summed relabund") |>
+  dplyr::select(-c(1:2)) %>%
+  pivot_longer(cols = names(.), values_to = "nitrifiers") |>
+  mutate(name = str_replace_all(name, '_B_M_', "_BM_") |> str_to_lower() |> str_replace_all('ctl', '0')) |>
+  tidyr::separate(name, into = c('project', 'block', 'treatment', 'plot', 'depth')) |>
+  mutate(plot = str_c(block, plot)) |>
+  filter(depth == '5') |>
+  dplyr::select(-project, -depth)
 
-ggplot(pcab, aes(pcab, PC2,color = treatment)) +
-  geom_point(aes(), size=3) +
-  stat_ellipse()
+discriminant_taxa <-
+  readxl::read_xlsx('data/DiscrimnantTaxa_ChurchPark_071124.xlsx') |>
+  tidyr::separate(taxonomy, into= c('d', 'phyllum', 'c', 'o', 'f', 'g', 's'), sep = "; ") |>
+  dplyr::select(-c(d, c, o, f, g, s)) |>
+  mutate(phyllum = str_remove_all(phyllum, 'p__')) %>%
+  pivot_longer(cols = names(.)[2:ncol(.)]) |>
+  mutate(name = str_replace_all(name, '_B_M_', "_BM_") |> str_to_lower() |> str_replace_all('ctl', '0')) |>
+  tidyr::separate(name, into = c('project', 'block', 'treatment', 'plot', 'depth')) |>
+  mutate(plot = str_c(block, plot)) |>
+  filter(depth == '5') |>
+  dplyr::select(-project, -depth) |>
+  pivot_wider(names_from = phyllum, values_from = value)
+
+# apply(nitrifiers, 2, unique)
+# 
+# 
+# ggplot(pcab, aes(pcab, PC2,color = treatment)) +
+#   geom_point(aes(), size=3) +
+#   stat_ellipse()
