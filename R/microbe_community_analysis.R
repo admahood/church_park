@@ -163,6 +163,10 @@ po <- nmdspa$points |>
         panel.background = element_rect(color="black", fill=NA)) +
   ggtitle("Occurrence, 16S (Bacteria)");po
 
+
+ggpubr::ggarrange(pa, paf, ncol=2, nrow=1, common.legend = T, legend="bottom") |>
+  ggsave(filename = "out/nmds_microbes_abundance_5in.png", width=7, height=4, bg="white")
+
 ggpubr::ggarrange(pa, po, paf, pof, ncol=2, nrow=2, common.legend = T, legend="bottom") |>
   ggsave(filename = "out/nmds_microbes_5in.png", width=7, height=7, bg="white")
 

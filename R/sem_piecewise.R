@@ -3,12 +3,14 @@ library(lmerTest)
 library(piecewiseSEM)
 library(ggsem)
 library(ggeffects)
+# library(semEff)
+library(MuMIn)
 source("R/a_church_data_prep.R")
 source("R/a_itv_data_prep.R")
 library(lavaan)
 library(ggsem) # devtools::install_github("admahood/ggsem")
 library(ggtext)
-
+# try it with simulated values of mulch and biochar
 # data_prep
 
 d <- d_church |>
@@ -32,7 +34,8 @@ d <- d_church |>
                 EMF = ectomycorrhizae_5,
                 pH = soil_p_h,
                 cations = cation_sum,
-                sand = percent_sand_0to5)
+                sand = percent_sand_0to5) |>
+  mutate_if(is.character, as.factor)
 
 oreo <- filter(d, species_full == "Oreochrysum parryi"); summary(oreo)
 vac <- filter(d, species_full == "Vaccinium sp"); summary(vac)
@@ -42,17 +45,16 @@ car <- filter(d, species_full == "Carex sp") |>
 # lmers for the traits
 
 # oreochrysum parryi ========================
-library(MuMIn)
-mol <- lmer(ldmc ~ Aspect + DIN +# EMF +#pH + EMF + DOC + PPF + TDN + 
+mol <- lmer(ldmc ~ DIN + Aspect + # sand +#twi +# EMF +#pH + EMF + DOC + PPF + TDN + 
                (1|block),
-            data = oreo, na.action = na.fail)
-mos <- lmer(sla ~ Aspect + ldmc+ cations + vwc +
+            data = oreo, na.action = na.fail); summary(mol)
+# mol <- lm(ldmc ~ DIN + Aspect, data = oreo)
+mos <- lmer(sla ~  ldmc + vwc + cations + Aspect +
               (1|block),
             data = oreo, na.action = na.fail)
-
+# mos <- lm(sla ~  ldmc + vwc + cations + Aspect, data = oreo)
 mdin <- lmer(DIN ~ vwc + pH + nitrifiers + EMF + (1|block),
              data = oreo, na.action = na.fail)
-
 mph <- lmer(pH ~  nitrifiers + cations + mulch +(1|block), 
             data = oreo, na.action = na.fail)
 memf <- lmer(EMF ~ pH + nitrifiers + mulch + (1|block), 
@@ -63,54 +65,55 @@ mtdn <- lmer(TDN ~ mulch + biochar + EMF + vwc + pH + DIN + nitrifiers +(1|block
              data = oreo, na.action = na.fail)
 mnit <- lmer(nitrifiers ~ mulch + biochar + vwc +(1|block),
              data = oreo, na.action = na.fail)
-mcat <- lmer(cations ~ biochar + vwc + mulch + (1|block), data = oreo)
-mvc <- lmer(vwc ~ mulch + biochar + (1|block), data = oreo)
+mcat <- lmer(cations ~ biochar + vwc + mulch + sand + (1|block), data = oreo)
+mvc <- lmer(vwc ~ mulch + biochar + sand + (1|block), data = oreo)
 
+lapply(c(mdin, mph, memf, mppf, mtdn, mnit, mcat), performance::r2)
 piecewiseSEM::psem(mol, mdin, mph, memf, mnit, mos, mcat, mvc) -> psem
+
 summary(psem)
-ggsem(psem, cols = c("black", "gold"), alpha = 0.05, 
+RColorBrewer::display.brewer.all()
+ggsem(psem, cols =RColorBrewer::brewer.pal(2, "Set1"), alpha = 0.05, 
       title = c("LDMC: Oreochrysum parryi", 
-                'R2 = 0.28'))
+                'LDMC R2 = 0.28, SLA R2 = 0.55'))
 ggsave('out/piecewise_oreo_ldmc.png', bg = 'white')
 
 # vaccinium sp =============
 
-mvl <- lmer(ldmc ~ mulch  + twi + pH + sand + DIN +(1|block), 
-            data = vac, na.action = na.fail)
-summary(mvl)
-
+mvl <- lmer(ldmc ~ mulch  + pH + DIN +(1|block), 
+            data = vac, na.action = na.fail); summary(mvl); car::Anova(mvl)
 mvs <- lmer(sla ~ ldmc+ 
               (1|block),
             data = vac)
-
 vdin <- lmer(DIN ~ pH + EMF + cations + (1|block),
              data = vac)
-summary(vdin)
-
-vph <- lmer(pH ~  nitrifiers + vwc  + nitrifiers + twi + cations + (1|block), 
+vph <- lmer(pH ~  mulch  + nitrifiers + twi + cations + (1|block), 
             data = vac, na.action = na.fail)
-
-
-vemf <- lmer(EMF ~ pH + nitrifiers + mulch + (1|block), 
+vemf <- lmer(EMF ~ pH + nitrifiers + mulch + TDN +(1|block), 
              data = vac, na.action = na.fail)
-
 vvc <- lmer(vwc ~ mulch + sand + cations + (1|block), data = vac)
-
 vppf <- lmer(PPF ~ biochar + vwc + EMF +(1|block), 
              data = vac, na.action = na.fail)
-
 vtdn <- lmer(TDN ~ mulch + biochar + EMF + vwc + pH + DIN + nitrifiers +(1|block),
              data = vac, na.action = na.fail)
-
-vcat <- lmer(cations ~ biochar + (1|block), data = vac)
-
-vnit <- lmer(nitrifiers ~ mulch + biochar + vwc + (1|block),
+vcat <- lmer(cations ~ biochar + TDN + (1|block), data = vac)
+vnit <- lmer(nitrifiers ~ biochar + vwc + TDN + (1|block),
              data = vac, na.action = na.fail)
 
-piecewiseSEM::psem(mvl, vdin, vnit, vph, mvs, vemf, vvc, vcat) -> psemv
+piecewiseSEM::psem(mvl, vdin, vnit, vph, vemf, vvc, vcat) -> psemv
 summary(psemv)
-ggsem(psemv, cols = c("black", "gold"), alpha = 0.05, title = c("LDMC: Vaccinium sp", 'R2 = 0.16'))
-ggsave('out/piecewise_vac_ldmc.png', bg = 'white')
+ggsem(psemv, cols = c("black", "gold"), alpha = 0.05, title = c("LDMC: Vaccinium sp", 'LDMC R2 = 0.09'))
+ggsave('out/piecewise_vacc.png', bg = 'white')
+
+# make an R2 table
+
+rv <- piecewiseSEM::rsquared(psemv) |> mutate(species = 'Vaccinium')
+ro <- piecewiseSEM::rsquared(psem) |> mutate(species = "Oreochrysum")
+
+bind_rows(rv, ro) |>
+  dplyr::select(1,5,6,7) |>
+  mutate_if(is.numeric, round, 2) |>
+  write_csv("out/psem_r2_table.csv")
 
 # Carex sp =============
 
@@ -118,11 +121,18 @@ mcl <- lmer(ldmc ~  vwc + total_n + DOC + TDN + (1|block),
             data = car, na.action = na.fail)
 summary(mcl)
 
-mcs <- lmer(sla ~ DIN + sand + cations + total_c +
+# try a glmer with a gamma distribution
+mcs <- lmer(sla ~ DIN + 
               (1|block),
-            data = car)
+            data = car); summary(mcs)
 
-cdin <- lmer(DIN ~  pH + EMF + cations + vwc + nitrifiers + (1|block),
+library(brms)
+bcs <- brm(sla ~ DIN + 
+              (1|block), family = 'gamma', 
+            data = car); summary(bcs)
+conditional_effects(bcs)
+performance::r2_bayes(bcs)
+cdin <- lmer(DIN ~  pH + EMF + cations + vwc + (1|block),
              data = car)
 summary(cdin)
 
@@ -137,15 +147,18 @@ cemf <- lmer(EMF ~ pH + nitrifiers + mulch + (1|block),
 cppf <- lmer(PPF ~ biochar + vwc + EMF +(1|block), 
              data = car, na.action = na.fail)
 
-ctdn <- lmer(TDN ~ mulch + biochar + EMF + vwc + pH + DIN + nitrifiers +(1|block),
+ctdn <- lmer(TDN ~ mulch + biochar + EMF + pH + nitrifiers + cations + (1|block),
              data = car, na.action = na.fail)
 
 cvc <- lmer(vwc ~ mulch + biochar + sand + cations + (1|block), data = car)
 
-cnit <- lmer(nitrifiers ~ mulch + biochar + vwc  +(1|block),
+cnit <- lmer(nitrifiers ~ mulch + biochar + vwc +(1|block),
              data = car, na.action = na.fail)
+ccat <- lmer(cations ~ mulch + biochar + (1|block), data = car)
 
-piecewiseSEM::psem(mcl, cdin, cnit, cph, mcs, cemf, cvc) -> psemc
+
+piecewiseSEM::psem(mcs, cdin, cnit, cph,  cemf, cvc) -> psemc
 summary(psemc)
-ggsem(psemc, cols = c("black", "gold"), alpha = 0.05, title = c("LDMC: Carex sp", 'R2 = 0.05'))
+ggsem(psemc, cols = c("black", "gold"), 
+      alpha = 0.05, title = c("LDMC: Carex sp", 'R2 = 0.05'))
 ggsave('out/piecewise_car_ldmc.png', bg = 'white')
