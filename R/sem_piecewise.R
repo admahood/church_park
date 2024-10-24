@@ -55,7 +55,7 @@ mos <- lmer(sla ~  ldmc + vwc + cations + Aspect +
 # mos <- lm(sla ~  ldmc + vwc + cations + Aspect, data = oreo)
 mdin <- lmer(DIN ~ vwc + pH + nitrifiers + EMF + (1|block),
              data = oreo, na.action = na.fail)
-mph <- lmer(pH ~  nitrifiers + cations + mulch +(1|block), 
+mph <- lmer(pH ~  nitrifiers + cations + mulch + (1|block), 
             data = oreo, na.action = na.fail)
 memf <- lmer(EMF ~ pH + nitrifiers + mulch + (1|block), 
              data = oreo, na.action = na.fail)
