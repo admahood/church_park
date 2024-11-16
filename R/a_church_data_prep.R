@@ -48,6 +48,18 @@ soil_23_tf <- readxl::read_xlsx('data/ConsolidatedChurchPark_for_Adam_070824.xls
                 plot = str_c(block, plot),
                 treatment = str_replace_all(treatment, 'c', '0'))
 glimpse(soil_23_tf)
+
+soil_23_tf_both_depths <- readxl::read_xlsx('data/ConsolidatedChurchPark_for_Adam_070824.xlsx') |>
+  dplyr::select(-1) |>
+  dplyr::rename(block = BLK, plot = PlotID, treatment = Trt, depth = Depth) |>
+  janitor::clean_names() |>
+  mutate_if(is.character, str_to_lower) %>%
+  tidyr::pivot_wider(id_cols = c('block', 'plot', 'treatment'), names_from = depth, values_from = names(.)[5:length(.)]) |>
+  janitor::clean_names() |>
+  dplyr::mutate(block = str_c('b', block),
+                plot = str_c(block, plot),
+                treatment = str_replace_all(treatment, 'c', '0'))
+glimpse(soil_23_tf_both_depths)
 # ================================
 # soil_pca <- prcomp(soil_23[,3:20], scale = T, center = T)
 # round((soil_pca$sdev^2 / sum(soil_pca$sdev^2))*100, 2)
@@ -319,10 +331,100 @@ comm_both <- comm_long %>%
               names_from = species, 
               values_fill = 0,
               values_from = cover)%>%
-  mutate(row = str_c(block, treatment, year)) %>%
+  mutate(row = str_c(block, "_", treatment, "_", year)) %>%
   dplyr::select(-block, -treatment, -year) %>%
   as.data.frame() %>%
   tibble::column_to_rownames("row")
+
+# veg differences year to year
+
+veg_compare <- comm_long %>%
+  mutate(year = "2023") |>
+  bind_rows(comm_16_long %>%
+              mutate(year = "2016")) |>
+  mutate(species = ifelse(str_sub(species,1,5) == "Collo", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Epilo", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Gayop", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Nasel", "Other_Graminoids", species),
+         species = ifelse(str_sub(species,1,5) == "Elymu", "Elymus_spp", species),
+         species = ifelse(str_sub(species,1,5) == "Pachy", "Other_Shrubs", species),
+         species = ifelse(str_sub(species,1,5) == "Cheno", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Madia", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Anaph", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Hiera", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Hacke", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Polyg", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Boech", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Penst", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Sperg", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Agose", "Other_Forbs", species),
+         species = ifelse(str_sub(species,1,5) == "Senec", "Senecio_spp", species),
+         species = ifelse(str_sub(species,1,5) == "Arnic", "Arnica_spp", species),
+         species = ifelse(str_sub(species,1,5) == "Bromu", "Other_Graminoids", species),
+         species = ifelse(species == "FB Tooth Top", "Other_Forbs", species),
+         species = ifelse(species == "Unk_grass", "Other_Graminoids", species),
+         species = ifelse(species == "Helianthella_sp", "Other_Forbs", species),
+         species = ifelse(species == "Nasella viridulis", "Other_Graminoids", species),
+  ) |>
+  group_by(block, treatment, species, year) %>%
+  summarise(cover = sum(value)/2) %>% # just doing mean does not work
+  ungroup() |>
+  pivot_wider(names_from = year, values_from = cover, values_fill = 0) |>
+  mutate(cover_change = `2023` - `2016`,
+         treatment = ifelse(treatment == 'c', '0', treatment))
+# library(lmerTest)
+# library(emmeans)
+# mv <- lmer(cover_change ~ treatment + (1|block), data = veg_compare |> filter(species =="Vaccinium_scoparium")) 
+# mc <- lmer(cover_change ~ treatment + (1|block), data = veg_compare |> filter(species =="Carex_sp")) 
+# mo <- lmer(cover_change ~ treatment + (1|block), data = veg_compare |> filter(species =="Oreochrysum_parryi"))
+# 
+# lapply(list(mv, mo, mc), summary)
+# 
+# emmeans(mv, ~treatment) |> pairs()
+# emmeans(mc, ~treatment) |> pairs()
+# emmeans(mo, ~treatment) |> pairs()
+
+unique(veg_compare$species) |> paste(collapse = "', '")
+
+lut_fg <- c('Abies_lasiocarpa' = 'Tree', 
+  'Achillea_millefolium' = "Forb", 
+  'Arctostaphylus_uvaursi' = 'Shrub', 
+  'Arnica_spp' = 'Forb',
+  'Carex_sp' = 'Graminoid', 
+  'Ceanothus_velutinus' = 'Shrub', 
+  'Chamerion_angustifolium' = 'Forb', 
+  'Cirsium_arvense' = 'Invasive', 
+  'Elymus_spp' = 'Graminoid', 
+  'Erigeron_speciosus' = 'Forb', 
+  'Lactuca_serriola' = "Invasive",
+  'Lathyrus_laetivirens' = 'Forb', 
+  'Lupinus_sp' = 'Shrub', 
+  'Mahonia_repens' = 'Shrub',
+  'Oreochrysum_parryi' = 'Forb',
+  'Other_Forbs' = 'Forb',
+  'Other_Graminoids' = 'Graminoid', 
+  'Other_Shrubs' = "Shrub",
+  'Phacelia_heterophylla' = 'Forb', 
+  'Phleum_pratense' = "Invasive", 
+  'Pinus_contorta' = "Tree", 
+  'Populus_tremuloides' = "Tree", 
+  'Rosa_sp' = "Shrub", 
+  'Senecio_spp' = 'Forb', 
+  'Solidago_multiradiata' = 'Forb', 
+  'Taraxacum_officinale' = "Invasive",
+  'Tragopogon_dubius' = 'Invasive',
+  'Vaccinium_scoparium' = 'Shrub',
+  'Verbascum_thapsus' = 'Invasive',
+  'Cirsium_sp' = "Invasive",
+  'Shepherida_canadensis' = 'Shrub',
+  'Lupinus_argenteus' = "Shrub")
+
+veg_diff <- veg_compare |>
+  mutate(name = lut_fg[species]) |>
+  dplyr::select(-species) |>
+  dplyr::rename(diff = cover_change) |>
+  group_by(block, treatment, name) |>
+  summarise_all(mean)
 
 # veg 2023 quadrat level =======================================================
 
@@ -391,21 +493,43 @@ gc_diff <- dplyr::bind_rows(gc16, gc23) |>
   pivot_wider(names_from = sample_year, values_from = value, values_fill = 0) |>
   mutate(diff = `2023` - `2016`) 
 
-gc_diff |>
-  filter(!name %in% c("root_stump", "cwd_coarse", "cwd_fine", "basal_live_plant")) |>
+pgcd <- gc_diff |>
+  filter(!name %in% c("root_stump", "cwd_coarse", "cwd_fine", "basal_live_plant", 'Tree')) |>
   pivot_longer(-c(block, treatment, name), names_to = 'year') |>
   filter(year != "diff") |>
-  mutate(treatment = str_replace_all(treatment, "c", "0")) |>
-  ggplot(aes(y=name, x=value, fill = year)) +
+  mutate(treatment = str_replace_all(treatment, "c", "0"),
+         name = ifelse(name == "bare_soil_gravel", "Bare Ground", name)) |>
+  ggplot(aes(y=value, fill = year)) +
   geom_boxplot() +
-  facet_wrap(~treatment, nrow=1, scales = 'free_x') +
+  ylab('Percent Cover') +
+  facet_grid(treatment~name, scales = 'free') +
   theme_bw() +
-  theme(legend.position = c(1,0),
-        legend.justification = c(1,0),
-        axis.title = element_blank(),
+  theme(legend.position ='none',
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.justification = c(1,1),
+        legend.background = element_rect(color = "black"))
+pvd <- veg_diff |>
+  filter(!name %in% c("root_stump", "cwd_coarse", "cwd_fine", "basal_live_plant", 'Tree')) |>
+  pivot_longer(-c(block, treatment, name), names_to = 'year') |>
+  filter(year != "diff") |>
+  mutate(treatment = str_replace_all(treatment, "c", "0"),
+         name = ifelse(name == "bare_soil_gravel", "Bare Ground", name)) |>
+  ggplot(aes(y=value, fill = year)) +
+  geom_boxplot() +
+  ylab('Percent Cover') +
+  facet_grid(treatment~name, scales = 'free') +
+  theme_bw() +
+  theme(legend.position = c(1,1),
+        axis.text.x = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.title.y = element_blank(),
+        legend.justification = c(1,1),
         legend.background = element_rect(color = "black"))
 
-ggsave("out/ground_cover_differences.png", bg='white', width=9, height=5)
+ggarrange(pgcd, pvd, nrow =1, widths = c(5,4.5))
+
+ggsave("out/ground_cover_differences.png", bg='white', width=9, height=6)
 
 sort(names(gc16));sort(names(gc23))
 
@@ -505,3 +629,12 @@ discriminant_taxa <-
 # ggplot(pcab, aes(pcab, PC2,color = treatment)) +
 #   geom_point(aes(), size=3) +
 #   stat_ellipse()
+
+# total veg cover =====================
+
+tvc <- comm_long |>
+  mutate(treatment = ifelse(treatment == 'c', '0', treatment)) |>
+  group_by(block, treatment) |>
+  summarise(total_veg_cover = sum(value)/2) |>
+  ungroup()
+

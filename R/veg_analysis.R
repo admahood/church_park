@@ -102,3 +102,34 @@ pdiv <- sites %>%
   facet_wrap(~name, scales = "free_y") ;pdiv
 
 ggsave(plot = pdiv, filename = "out/alphadiversity_x_treatment.png", width =5, height = 5)
+
+
+
+cle <- comm_long |>
+  mutate(nativity = ifelse(species %in% c('Cirsium_sp', 'Phleum_pratense', 'Taraxacum_officinale'), 'exotic', 'native'),
+         treatment = ifelse(treatment == 'c', '0', treatment)) |>
+  group_by(block, treatment) |>
+  mutate(total_cover = sum(value)/2) |>
+  ungroup() |>
+  group_by(block, treatment, nativity, total_cover) |>
+  summarise(cover = sum(value)/2) |>
+  ungroup() |>
+  pivot_wider(names_from = nativity, values_from = cover, names_glue = "{nativity}_cover", values_fill = 0) |>
+  mutate(exotic_rc = (exotic_cover/total_cover)*100)
+library(glmmTMB)
+mrc <- glmmTMB::glmmTMB(exotic_rc ~ treatment + (1|block), data=cle, family = tweedie()) 
+mc <- lmerTest::lmer(exotic_cover ~ treatment + (1|block), data=cle) 
+
+library(emmeans)
+
+?emmeans
+emmeans(mc,  ~ treatment, adjust = 'sidak') |> pairs()
+
+
+ggplot(cle, aes(x=treatment, y=exotic_cover, fill = treatment)) +
+  geom_boxplot() +
+  scale_y_log10()
+
+ggplot(cle, aes(x=treatment, y=exotic_rc, fill = treatment)) +
+  geom_boxplot() +
+  scale_y_log10()
