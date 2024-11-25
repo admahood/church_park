@@ -5,7 +5,35 @@ library(ggpubr)
 library(ggrepel)
 source("R/a_church_data_prep.R")
 
+# look up tables ===============================================================
 
+lut_varcats <- c("CN" = "C & N",
+                 "TDN" = "C & N",
+                 "NO3" = "C & N",
+                 "DON" = "C & N",
+                 "DOC" = "C & N",
+                 "DIN" = "C & N",
+                 "NH4" = "C & N",
+                 "Mulch" = "Cover",
+                 "Biochar" = "Cover",
+                 "Vegetation" = "Cover",
+                 "Bare_Ground" = "Cover",
+                 "Fungal_Div" = "Mic.",
+                 "Bacterial_Div" = "Mic.",
+                 "Nitrifiers" = "Mic.",
+                 "EMF" = "Mic.",
+                 "VWC" = "Moisture",
+                 "TWI" = "Moisture",
+                 "Sand" = "Moisture",
+                 "Clay" = "Moisture",
+                 "Aspect" = "Moisture",
+                 "K" = "Other Chem",
+                 "PO4" = "Other Chem",
+                 "pH" = "Other Chem",
+                 "Cations" = "Other Chem")
+
+
+# data input ===================================================================
 d <- sites_w_23_soil |>
   left_join(gc_by_plot_23) |>
   dplyr::rename(vwc = mean_vwc, mulch = wood_mulch) |> 
@@ -100,6 +128,9 @@ commb <- ra_16s %>%
 nmds <- vegan::metaMDS(commf, trymax=100)
 nmdsb <- vegan::metaMDS(commb, trymax = 100)
 
+vegan::adonis(nmds, d |> dplyr::select(treatment))
+
+
 envfit(nmds, d |> dplyr::select(nitrifiers, EMF), 9999)
 envfit(nmdsb, d |> dplyr::select(nitrifiers, EMF), 9999)
 
@@ -172,7 +203,7 @@ spca <- soil_pca$x |>
   geom_point(aes(color = d_treatment), size=2) +
   stat_ellipse(aes(color = d_treatment)) +
   geom_text_repel(data = rotation, aes(x=PC1, y=PC2, label  = row), fontface = 'bold') +
-  ggtitle("d. PCA on Soil Variables") +
+  ggtitle("PCA of Soil Chemistry Variables") +
   xlab('Component 1') +
   ylab('Component 2') +
   scale_color_brewer(palette = "Set1") +
@@ -183,11 +214,15 @@ spca <- soil_pca$x |>
         legend.position = 'none',
         legend.justification = c(1,1),
         legend.background = element_rect(fill = NA));spca
+ggsave(plot = spca, filename = 'out/figure_sx_soil_chem_pca.png', width =5, height = 5, bg = 'white')
 
 soil_boxes <- d |>
   mutate(CN = total_c/total_n) |>
-  dplyr::select(pH, TN = total_n, VWC = vwc, TC = total_c, TDN, Cations = cations, CN, DOC, TDN, NH4 = ammonium, NO3 = nitrate, treatment, EMF, Nitrifiers = nitrifiers) |>
-  pivot_longer(cols = c(pH, TN, TC, TDN, Cations, EMF, CN, DOC, TDN, NH4, NO3, Nitrifiers, VWC)) |>
+  dplyr::select(pH, TN = total_n, VWC = vwc, TC = total_c, TDN, #DIN,
+                Cations = cations, CN, DOC, TDN, NH4 = ammonium, NO3 = nitrate,
+                treatment, EMF, Nitrifiers = nitrifiers) |>
+  pivot_longer(cols = c(pH, TN, TC, TDN, Cations, EMF, CN, DOC, TDN, NH4, NO3, 
+                        Nitrifiers, VWC)) |>
   mutate(treatment = fct_relevel(treatment, 'CTL', 'B', "BM", "M")) |>
   ggplot(aes(x=treatment, y = value, fill = treatment)) +
     scale_fill_brewer(palette = "Set1") +
@@ -206,4 +241,66 @@ ggarrange(top, bottom, nrow =2, ncol =1) -> full
 
 ggsave(plot = full, bg = 'white', filename = "out/figure_2_multipanel.png", width =8, height = 8)
 
+# new soil boxplots =======================
 
+bottom <- read_csv("data/cp_trait_soil_data.csv") |>
+  dplyr::select(
+    treatment, VWC = vwc, 
+    Bacterial_Div = simpson_bacteria_5, EMF = EMF_0_5,
+    Fungal_Div = simpson_bacteria_5,
+    Bare_Ground = bare, Mulch = mulch, Biochar = biochar, Nitrifiers = nitrifiers,
+    # TN = total_n_0_5, TC = total_c_0_5, 
+    DOC = DOC_0_5, TDN = TDN_0_5, 
+    NH4 = ammonium_0_5, NO3 = nitrate_0_5, PO4 = phosphate_0_5, Cations = cations_0_5,
+    K = potassium_0_5, DIN = DIN_0_5, DON = DON_0_5, Vegetation = total_veg_cover
+  ) |>
+  mutate(treatment = str_to_upper(treatment) |> str_replace_all("0", "CTL"),
+    treatment = fct_relevel(treatment, 'CTL', 'B', "BM", "M")) |>
+  unique() %>%
+  pivot_longer(cols = names(.)[2:ncol(.)]) |>
+  mutate(cat = lut_varcats[name],
+         name = paste0(cat, ": ", name)) |>
+  ggplot() +
+  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
+  facet_wrap(~name, scales = 'free_y', nrow=3) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_bw() +
+  ggtitle('d. Soil, Microbial and Groundcover Variables by Treatment')+
+  theme(axis.title = element_blank(),
+        axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        legend.position = 'none'); bottom
+
+ggarrange(top, bottom, nrow =2, ncol =1) -> full
+
+ggsave(plot = full, bg = 'white', filename = "out/figure_2_multipanel.png", width =8, height = 8)
+
+
+# corrplot
+read_csv("data/cp_trait_soil_data.csv") |>
+  dplyr::select(-c(1:8),-vwc, -CN_5_15, -Aspect,-total_veg_cover, -aspect, -twi, -latitude,
+                -elevation, -longitude, -biochar, -pH, -rock, -bare, -mulch, -flowdir, -TPI, -TRI,
+                -sand_0_5, -starts_with(c("DOCto", 'other', 'unassigned', 'species', 'Proteo', 'Chloro', "Verru")),-slope,-litter_duff, -TPI,-starts_with('shannon'),
+                -ends_with(c('0to5', '5to15'))) |> 
+  unique() |>
+  cor() -> cormat
+ggcorrplot::cor_pmat(cormat) -> pmat
+
+ggcorrplot::ggcorrplot(cormat,
+                       p.mat = pmat,
+                       insig = 'blank',
+                       type = 'lower', 
+                        hc.order = TRUE,
+                       hc.method = 'centroid') +
+  theme(axis.text.x = element_text(angle=90), 
+        legend.position = c(0,1),
+        legend.justification = c(0,1))
+ggsave('out/corrmat.png', width = 10, height = 10, bg = 'white')
+  
+  cormat |> as.data.frame() |>
+    as_tibble(rownames = 'var') %>%
+    pivot_longer(cols = names(.)[2:ncol(.)]) |>
+    filter(name != value) |>
+    ggplot(aes(x=value, y=str_c(name, "__",var))) +
+    geom_point()
+    
