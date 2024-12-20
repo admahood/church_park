@@ -128,7 +128,9 @@ commb <- ra_16s %>%
 nmds <- vegan::metaMDS(commf, trymax=100)
 nmdsb <- vegan::metaMDS(commb, trymax = 100)
 
-vegan::adonis(nmds, d |> dplyr::select(treatment))
+# vegan::adonis2(nmds, d |> dplyr::select(treatment))
+adf <- adonis2(commf ~ treatment, data = d |> dplyr::select(treatment))
+adb <- adonis2(commb ~ treatment, data = d |> dplyr::select(treatment))
 
 
 envfit(nmds, d |> dplyr::select(nitrifiers, EMF), 9999)
@@ -170,12 +172,9 @@ pof <- nmdsb$points |>
   ggtitle("b. Bacterial community (16s)");pof
 
 top <- ggarrange(p_oc, pof, paf, nrow = 1, ncol =3, common.legend = TRUE, legend = 'bottom')
-ggsave('out/top_panel.png', width = 7.5, height = 4, bg='white')
+ggsave('out/figure_2_top_panel.png', width =8.5, height = 4, bg='white')
 
 # bottom panel: soil ===========================================================
-
-
-
 
 glimpse(d)
 
@@ -243,7 +242,7 @@ ggsave(plot = full, bg = 'white', filename = "out/figure_2_multipanel.png", widt
 
 # new soil boxplots =======================
 
-bottom <- read_csv("data/cp_trait_soil_data.csv") |>
+ddd <-  read_csv("data/cp_trait_soil_data.csv") |>
   dplyr::select(
     treatment, VWC = vwc, 
     Bacterial_Div = simpson_bacteria_5, EMF = EMF_0_5,
@@ -258,22 +257,71 @@ bottom <- read_csv("data/cp_trait_soil_data.csv") |>
     treatment = fct_relevel(treatment, 'CTL', 'B', "BM", "M")) |>
   unique() %>%
   pivot_longer(cols = names(.)[2:ncol(.)]) |>
-  mutate(cat = lut_varcats[name],
-         name = paste0(cat, ": ", name)) |>
+  mutate(cat = lut_varcats[name]) 
+
+row1 <- ddd |>
+  filter(cat == 'C & N') |>
   ggplot() +
   geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
-  facet_wrap(~name, scales = 'free_y', nrow=3) +
+  facet_wrap(~name, scales = 'free_y', nrow = 1) +
   scale_fill_brewer(palette = "Set1") +
   theme_bw() +
-  ggtitle('d. Soil, Microbial and Groundcover Variables by Treatment')+
+  ggtitle('Soil Carbon & Nitrogen')+
   theme(axis.title = element_blank(),
-        axis.text.y = element_blank(),
-        axis.ticks = element_blank(),
-        legend.position = 'none'); bottom
+        # axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = 'none'); row1
 
-ggarrange(top, bottom, nrow =2, ncol =1) -> full
+row2 <- ddd |>
+  filter(cat == 'Cover') |>
+  mutate(name = str_replace_all(name, "_", ' ')) |>
+  ggplot() +
+  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
+  facet_wrap(~name, scales = 'free_y', nrow = 1) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_bw() +
+  ggtitle('Ground Cover')+
+  theme(axis.title = element_blank(),
+        # axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = 'none'); row2
 
-ggsave(plot = full, bg = 'white', filename = "out/figure_2_multipanel.png", width =8, height = 8)
+row3 <- ddd |>
+  filter(cat == 'Mic.') |>
+  mutate(name = str_replace_all(name, "_", ' ')) |>
+  ggplot() +
+  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
+  facet_wrap(~name, scales = 'free_y', nrow = 1) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_bw() +
+  ggtitle('Microbes')+
+  theme(axis.title = element_blank(),
+        # axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = 'none'); row3
+
+row4 <- ddd |>
+  filter(cat %in% c('Other Chem', "Moisture")) |>
+  mutate(name = str_replace_all(name, "_", ' ')) |>
+  ggplot() +
+  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
+  facet_wrap(~name, scales = 'free_y', nrow = 1) +
+  scale_fill_brewer(palette = "Set1") +
+  theme_bw() +
+  ggtitle('Moisture and Other Soil Chemicals')+
+  theme(axis.title = element_blank(),
+        # axis.text.y = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = 'none'); row4
+library(cowplot)
+
+full <- cowplot::ggdraw(xlim =c(0,6), ylim =c(0,4)) +
+  draw_plot(row1, 0, 3, 6, 1) +  
+  draw_plot(row2, 0, 2, 4, 1) +  
+  draw_plot(row3, 0, 1, 4, 1) +  
+  draw_plot(row4, 0, 0, 4, 1)
+  
+ggsave(plot = full, bg = 'white', filename = "out/figure_SX_soil_boxes.png", width =12, height =8)
 
 
 # corrplot

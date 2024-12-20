@@ -139,7 +139,7 @@ pol <- ggsem(psem, cols =RColorBrewer::brewer.pal(2, "Set1"), alpha = 0.05,
 ggsave('out/piecewise_oreo_ldmc.png', bg = 'white')
 
 
-sem.boot_ol <- bootEff(psem, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_ol <- bootEff(psem, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_ol <- semEff(sem.boot_ol)
 summary(sem_eff_ol)
 summary(
@@ -181,7 +181,7 @@ pos <- ggsem(psem_os,
                                                  ', p = ',sos$Cstat[1,3], ', C =', sos$Cstat[1,1])));pos
 ggsave('out/piecewise_oreo_sla.png', bg = 'white')
 
-sem.boot_os <- bootEff(psem_os, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_os <- bootEff(psem_os, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_os <- semEff(sem.boot_os)
 summary(sem_eff_os)
 summary(
@@ -247,7 +247,7 @@ poh <- ggsem(psem_oh, cols = RColorBrewer::brewer.pal(2, "Set1"), alpha = 0.05, 
                                                    ', p = ',soh$Cstat[1,3], ', C =', soh$Cstat[1,1])));poh
 ggsave('out/piecewise_oreo_height.png', bg = 'white')
 
-sem.boot_oh <- bootEff(psem_oh, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_oh <- bootEff(psem_oh, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_oh <- semEff(sem.boot_oh)
 summary(sem_eff_oh)
 summary(
@@ -371,7 +371,7 @@ pvl <- ggsem(psemv, cols = RColorBrewer::brewer.pal(2, "Set1"), labels = F,
                                     ', p = ',svl$Cstat[1,3], ', C =', svl$Cstat[1,1])));pvl
 ggsave('out/piecewise_vacc.png', bg = 'white')
 
-sem.boot_vl <- bootEff(psemv, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_vl <- bootEff(psemv, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_vl <- semEff(sem.boot_vl)
 summary(sem_eff_vl)
 summary(
@@ -455,7 +455,7 @@ pvs <- ggsem(psemvs, cols = RColorBrewer::brewer.pal(2, "Set1"), labels = F,
 
 ggsave('out/piecewise_vacc.png', bg = 'white')
 
-sem.boot_vs <- bootEff(psemvs, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_vs <- bootEff(psemvs, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_vs <- semEff(sem.boot_vs)
 summary(sem_eff_vs)
 summary(
@@ -541,7 +541,7 @@ pvh <- ggsem(psemvh, cols = RColorBrewer::brewer.pal(2, "Set1"), labels = F,show
                                      paste('Height R2 =' ,svh$R2$Marginal[1], 
                                            ', p = ',svh$Cstat[1,3], ', C =', svh$Cstat[1,1])));pvh
 
-sem.boot_vh <- bootEff(psemvh, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_vh <- bootEff(psemvh, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_vh <- semEff(sem.boot_vh)
 summary(sem_eff_vh)
 summary(
@@ -601,7 +601,7 @@ bind_rows(rv, ro) |>
 mniters <- lmer(Nitrifiers ~ Mulch + Biochar + VWC + pH + PO4 + Bare +
                   (1|block),
                 data = d |> filter(!is.na(SLA))); summary(mniters)
-mVWC <- lmer(VWC ~ Mulch + Biochar + Bare + TWI + pH + (1|block), data = d |> filter(!is.na(SLA)))
+mVWC <- lmer(VWC ~ Mulch + Biochar + Bare + TWI + (1|block), data = d |> filter(!is.na(SLA)))
 mnitr <- lmer(NO3 ~ VWC + Bare  + TWI + pH  + PO4 + (1|block), data = d |> filter(!is.na(SLA)))
 
 memf <- lmer(EMF ~  Bare +Nitrifiers + NO3 + Mulch+ PO4 + pH +(1|block),
@@ -639,10 +639,11 @@ pemf <- ggsem(ps_emf, cols = RColorBrewer::brewer.pal(2, "Set1"), labels = F,
               layout = 'manual', layout_df = layout_emf,
              alpha = 0.05, title = c("EMF",
                                      paste('EMF R2 =' ,semf$R2$Marginal[1], 
+                                           'Nitrifiers R2 = ',semf$R2$Marginal[3],
                                            ', p = ',semf$Cstat[1,3], ', C =', semf$Cstat[1,1])));pemf
 ggsave('out/emf_sem.png', width =8, height = 8, bg = 'white')
 
-sem.boot_emf <- bootEff(ps_emf, R = 500, seed = 13, parallel = "snow", ran.eff = "block")
+sem.boot_emf <- bootEff(ps_emf, R = 5000, seed = 13, parallel = "snow", ran.eff = "block")
 sem_eff_emf <- semEff(sem.boot_emf)
 summary(sem_eff_emf)
 summary(
