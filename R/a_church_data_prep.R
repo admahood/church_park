@@ -419,6 +419,13 @@ lut_fg <- c('Abies_lasiocarpa' = 'Tree',
   'Shepherida_canadensis' = 'Shrub',
   'Lupinus_argenteus' = "Shrub")
 
+oreo_vac <- veg_compare |>
+  dplyr::filter(species %in% c("Oreochrysum_parryi", "Vaccinium_scoparium"))|>
+  dplyr::mutate(species = ifelse(species == 'Oreochrysum_parryi', "Oreochrysum", "Vaccinium")) |>
+  dplyr::rename(name = species) |>
+  group_by(block, treatment, name) |>
+  summarise_all(mean)
+
 veg_diff <- veg_compare |>
   mutate(name = lut_fg[species]) |>
   dplyr::select(-species) |>

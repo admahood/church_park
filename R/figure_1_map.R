@@ -45,7 +45,7 @@ ggplot(dem_df) +
   ggnewscale::new_scale_fill() +
   geom_raster(aes(fill = `Elevation (m)`, x=x,y=y), alpha = 0.5) +
   scale_fill_gradientn(colours = terrain.colors(10)) +
-  geom_sf(data = roads, color = 'black', lwd=1) +
+  geom_sf(data = roads, color = 'grey30', lwd=1) +
   geom_contour(aes(x=x,y=y,z=`Elevation (m)`), color = 'grey30', binwidth = 50, lwd = .25) +
   coord_sf(expand = F, xlim = c(-105.935, -105.96), ylim = c(39.93, 39.952)) +
   geom_point(data = plots, aes(x=x,y=y)) +
@@ -55,5 +55,16 @@ ggplot(dem_df) +
         legend.background = element_rect(color = 'black'),
         axis.title = element_blank())
 
-ggsave('out/map_figure.png', width = 6, height = 6, bg = 'white')
+ggsave('out/map_figure.png', width = 5, height = 5, bg = 'white')
 
+
+# locator inset ----------------------------------------------------------------
+
+states <- st_read("data/cb_2018_us_state_20m/") |>
+  filter(!NAME %in% c('Alaska', "Hawaii", "Puerto Rico", "Guam"))
+
+ggplot() +
+  geom_sf(data = states, fill=NA, color = 'black') +
+  geom_point(data = plots, aes(x=x,y=y), size = 3, shape = 8, color = 'red') +
+  theme_void() 
+ggsave('out/locator_map.png', dpi=300, width =3, height =1.65, bg='white')  

@@ -19,7 +19,7 @@ lut_varcats <- c("CN" = "C & N",
                  "Vegetation" = "Cover",
                  "Bare_Ground" = "Cover",
                  "Fungal_Div" = "Mic.",
-                 "Bacterial_Div" = "Mic.",
+                 "BA_Div" = "Mic.",
                  "Nitrifiers" = "Mic.",
                  "EMF" = "Mic.",
                  "VWC" = "Moisture",
@@ -28,9 +28,9 @@ lut_varcats <- c("CN" = "C & N",
                  "Clay" = "Moisture",
                  "Aspect" = "Moisture",
                  "K" = "Other Chem",
-                 "PO4" = "Other Chem",
+                 "PO4" = "C & N",
                  "pH" = "Other Chem",
-                 "Cations" = "Other Chem")
+                 "Cations" = "C & N")
 
 
 # data input ===================================================================
@@ -82,6 +82,10 @@ species <- as.data.frame(cbind(sp, p=ef$vectors$pvals)) %>%
 
 adoc <- adonis2(comm_both |> decostand("pa") ~ treatment + year, data = site_scores)
 
+yearss <- data.frame(NMDS1 = c(.25, .25),
+                     NMDS2 = c(-0.5, .55),
+                     label = c("2023", '2016'))
+
 p_oc <- ggplot(site_scores, aes(x=NMDS1, y=NMDS2)) +
   # coord_fixed() +
   geom_point(size=2, 
@@ -93,6 +97,7 @@ p_oc <- ggplot(site_scores, aes(x=NMDS1, y=NMDS2)) +
   stat_ellipse(aes(group = year)) +
   scale_shape_manual(values = c(17,19))+
   scale_color_brewer(palette = "Set1") +
+  geom_text(data = yearss, aes(label = label))+
   theme(panel.background = element_rect(fill="transparent", color = "black"),
         legend.position = c(0,1),
         legend.justification = c(0,1),
@@ -100,7 +105,7 @@ p_oc <- ggplot(site_scores, aes(x=NMDS1, y=NMDS2)) +
         axis.ticks = element_blank(),
         # legend.background = element_rect(fill = 'transparent', color = 'black')
         ) +
-  ggtitle("a. Plant community");p_oc  
+  ggtitle("a. Plants");p_oc  
 
 # microbial community ==========================================================
 key <- readxl::read_xlsx("data/Church_Park_Microbial_Data.xlsx", sheet = 1) 
@@ -145,7 +150,7 @@ paf <- nmds$points |>
   ggplot(aes(x=MDS1, y=MDS2)) +
   geom_point(size=2, aes(color = treatment)) +
   stat_ellipse(aes(color = treatment)) +
-  ggtitle("c. Fungal community (ITS)") +
+  ggtitle("c. Fungi (ITS)") +
   theme_classic() +
   xlab("NMDS1") +
   scale_color_brewer(palette = "Set1") +
@@ -169,7 +174,7 @@ pof <- nmdsb$points |>
         axis.ticks = element_blank(),
         axis.title.y = element_blank(),
         panel.background = element_rect(color="black", fill=NA)) +
-  ggtitle("b. Bacterial community (16s)");pof
+  ggtitle("b. Bacteria/Archaea (16s)");pof
 
 top <- ggarrange(p_oc, pof, paf, nrow = 1, ncol =3, common.legend = TRUE, legend = 'bottom')
 ggsave('out/figure_2_top_panel.png', width =8.5, height = 4, bg='white')
@@ -241,87 +246,6 @@ ggarrange(top, bottom, nrow =2, ncol =1) -> full
 ggsave(plot = full, bg = 'white', filename = "out/figure_2_multipanel.png", width =8, height = 8)
 
 # new soil boxplots =======================
-
-ddd <-  read_csv("data/cp_trait_soil_data.csv") |>
-  dplyr::select(
-    treatment, VWC = vwc, 
-    Bacterial_Div = simpson_bacteria_5, EMF = EMF_0_5,
-    Fungal_Div = simpson_bacteria_5,
-    Bare_Ground = bare, Mulch = mulch, Biochar = biochar, Nitrifiers = nitrifiers,
-    # TN = total_n_0_5, TC = total_c_0_5, 
-    DOC = DOC_0_5, TDN = TDN_0_5, 
-    NH4 = ammonium_0_5, NO3 = nitrate_0_5, PO4 = phosphate_0_5, Cations = cations_0_5,
-    K = potassium_0_5, DIN = DIN_0_5, DON = DON_0_5, Vegetation = total_veg_cover
-  ) |>
-  mutate(treatment = str_to_upper(treatment) |> str_replace_all("0", "CTL"),
-    treatment = fct_relevel(treatment, 'CTL', 'B', "BM", "M")) |>
-  unique() %>%
-  pivot_longer(cols = names(.)[2:ncol(.)]) |>
-  mutate(cat = lut_varcats[name]) 
-
-row1 <- ddd |>
-  filter(cat == 'C & N') |>
-  ggplot() +
-  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
-  facet_wrap(~name, scales = 'free_y', nrow = 1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme_bw() +
-  ggtitle('Soil Carbon & Nitrogen')+
-  theme(axis.title = element_blank(),
-        # axis.text.y = element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position = 'none'); row1
-
-row2 <- ddd |>
-  filter(cat == 'Cover') |>
-  mutate(name = str_replace_all(name, "_", ' ')) |>
-  ggplot() +
-  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
-  facet_wrap(~name, scales = 'free_y', nrow = 1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme_bw() +
-  ggtitle('Ground Cover')+
-  theme(axis.title = element_blank(),
-        # axis.text.y = element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position = 'none'); row2
-
-row3 <- ddd |>
-  filter(cat == 'Mic.') |>
-  mutate(name = str_replace_all(name, "_", ' ')) |>
-  ggplot() +
-  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
-  facet_wrap(~name, scales = 'free_y', nrow = 1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme_bw() +
-  ggtitle('Microbes')+
-  theme(axis.title = element_blank(),
-        # axis.text.y = element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position = 'none'); row3
-
-row4 <- ddd |>
-  filter(cat %in% c('Other Chem', "Moisture")) |>
-  mutate(name = str_replace_all(name, "_", ' ')) |>
-  ggplot() +
-  geom_boxplot(aes(x=treatment, y=value, fill = treatment), outliers = F) +
-  facet_wrap(~name, scales = 'free_y', nrow = 1) +
-  scale_fill_brewer(palette = "Set1") +
-  theme_bw() +
-  ggtitle('Moisture and Other Soil Chemicals')+
-  theme(axis.title = element_blank(),
-        # axis.text.y = element_blank(),
-        axis.ticks.x = element_blank(),
-        legend.position = 'none'); row4
-library(cowplot)
-
-full <- cowplot::ggdraw(xlim =c(0,6), ylim =c(0,4)) +
-  draw_plot(row1, 0, 3, 6, 1) +  
-  draw_plot(row2, 0, 2, 4, 1) +  
-  draw_plot(row3, 0, 1, 4, 1) +  
-  draw_plot(row4, 0, 0, 4, 1)
-  
-ggsave(plot = full, bg = 'white', filename = "out/figure_SX_soil_boxes.png", width =12, height =8)
 
 
 # corrplot
