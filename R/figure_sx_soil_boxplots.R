@@ -31,7 +31,7 @@ lut_varcats <- c("CN" = "Soil Characteristics",
 # figure sx soil boxplots
 
 
-ddd <-  read_csv("data/cp_trait_soil_data.csv") |>
+ddd <-  read_csv("data/cp_trait_soil_data_20250128_update.csv") |>
   dplyr::select(
     treatment, VWC = vwc, 
     BA_Div = simpson_bacteria_5, EMF = EMF_0_5,

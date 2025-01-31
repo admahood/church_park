@@ -174,7 +174,7 @@ pof <- nmdsb$points |>
         axis.ticks = element_blank(),
         axis.title.y = element_blank(),
         panel.background = element_rect(color="black", fill=NA)) +
-  ggtitle("b. Bacteria/Archaea (16s)");pof
+  ggtitle("b. Bacteria/Archaea (16S)");pof
 
 top <- ggarrange(p_oc, pof, paf, nrow = 1, ncol =3, common.legend = TRUE, legend = 'bottom')
 ggsave('out/figure_2_top_panel.png', width =8.5, height = 4, bg='white')
