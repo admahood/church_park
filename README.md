@@ -4,12 +4,4 @@
 
 
 
-# church_park
-
-spp composition ~ trt
-JSDM NMDS
-functional traits
-
-topo - indexes: heat load, TWI
-soil stuff: N, C etc from chuck
-microbial community stuff from mike wilkins
+# Data and Code for "Post-fire soil amendments affect plant functional traits indirectly via changes to soil chemistry and microbes"
