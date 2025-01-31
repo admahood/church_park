@@ -1,3 +1,9 @@
+
+
+[![DOI](https://zenodo.org/badge/689164124.svg)](https://doi.org/10.5281/zenodo.14681371)
+
+
+
 # church_park
 
 spp composition ~ trt
