@@ -13,14 +13,14 @@ dem <- terra::rast("data/dem/n39_w106_1arc_v3.bil") |>
 names(dem) <- "elevation"
 
 terrain <- terra::terrain(dem, v = c("slope", "aspect", "TPI", "TRI", "flowdir"))
-twi <- topomicro::get_twi(dem, resolution = 30)
+twi <- topomicro::twi(dem, resolution = 30)
 
 topo <- read_csv("data/fraser - locations.csv") |>
   st_as_sf(crs = 4326, coords = c("longitude", "latitude"), remove=F) %>%
   mutate(terra::extract(terrain, .),
          terra::extract(twi$twi, .),
          terra::extract(dem, .),
-         folded_aspect = topomicro::get_folded_aspect(aspect),
+         folded_aspect = topomicro::folded_aspect(aspect),
          block = str_c("b", plot)) |>
   st_set_geometry(NULL) |>
   dplyr::select(-ID, -plot)

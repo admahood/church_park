@@ -1,0 +1,19 @@
+model,name,R2,F,p
+Plants,CTL_vs_B,0.075,0.806,0.681
+Plants,CTL_vs_BM,0.067,0.713,0.757
+Plants,CTL_vs_M,0.048,0.508,0.934
+Plants,B_vs_BM,0.094,1.038,0.374
+Plants,B_vs_M,0.048,0.505,0.933
+Plants,BM_vs_M,0.076,0.821,0.64
+Bacteria,CTL_vs_B,0.168,2.021,0.009 *
+Bacteria,CTL_vs_BM,0.148,1.733,0.033 *
+Bacteria,CTL_vs_M,0.24,3.166,0.008 *
+Bacteria,B_vs_BM,0.136,1.579,0.072
+Bacteria,B_vs_M,0.104,1.16,0.271
+Bacteria,BM_vs_M,0.104,1.16,0.255
+Fungi,CTL_vs_B,0.173,2.085,0.012 *
+Fungi,CTL_vs_BM,0.095,1.047,0.421
+Fungi,CTL_vs_M,0.1,1.116,0.326
+Fungi,B_vs_BM,0.105,1.168,0.234
+Fungi,B_vs_M,0.112,1.266,0.171
+Fungi,BM_vs_M,0.059,0.629,0.943

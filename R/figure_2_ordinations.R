@@ -2,6 +2,7 @@
 library(tidyverse)
 library(vegan)
 library(ggpubr)
+library(pairwiseAdonis)
 library(ggrepel)
 source("R/a_church_data_prep.R")
 
@@ -58,13 +59,13 @@ d <- sites_w_23_soil |>
   mutate(treatment = str_replace_all(treatment, "0", "ctl") |> str_to_upper())
 
 # plant community ==============================================================
-nms_a <- metaMDS(comm_both |> decostand("pa"), trymax = 100)
+nms_a <- metaMDS(comm |> decostand("pa"), trymax = 100)
 
 stressplot(nms_a)
 
 site_scores <- as.data.frame(vegan::scores(nms_a)$sites) %>%
   as_tibble(rownames = "plot") %>%
-  mutate(year = str_extract(plot, "\\d{4}"),
+  mutate(#year = str_extract(plot, "\\d{4}"),
          plot = str_remove_all(plot,"\\d{4}"),
          treatment = str_remove_all(plot, "b\\d{1}") |> str_remove_all("_"),
          treatment = str_replace_all(treatment, "c", "CTL") |> str_to_upper()) |>
@@ -72,7 +73,7 @@ site_scores <- as.data.frame(vegan::scores(nms_a)$sites) %>%
            
            
 
-ef <- envfit(nms_a, comm_both, na.rm = T, permutations = 9999)
+ef <- envfit(nms_a, comm, na.rm = T, permutations = 9999)
 
 sp <-as.data.frame(ef$vectors$arrows*sqrt(ef$vectors$r))
 
@@ -80,24 +81,35 @@ species <- as.data.frame(cbind(sp, p=ef$vectors$pvals)) %>%
   tibble::rownames_to_column("species")  %>%
   filter(p < 0.005)
 
-adoc <- adonis2(comm_both |> decostand("pa") ~ treatment + year, data = site_scores)
+adoc <- adonis2(comm |> decostand("pa") ~ treatment, data = site_scores)
 
-yearss <- data.frame(NMDS1 = c(.25, .25),
-                     NMDS2 = c(-0.5, .55),
-                     label = c("2023", '2016'))
+pad_p <- pairwise.adonis2(comm ~ treatment, data = d, nperm = 9999) |> as_tibble() |> slice(1) %>% pivot_longer(cols = names(.)[2:length(.)]) 
+
+perm_p <- pad_p |> dplyr::select(-parent_call, -name) |> as.data.frame() |> 
+  pluck(1) |>
+  as.data.frame() |>
+  mutate(name = pad_f$name,
+         model = "Plants",
+         R2 = round(R2, 3),
+         F = round(F, 3)) |>
+  dplyr::select(model, name, R2, F, p = 'Pr(>F)') |>
+  mutate(p = ifelse(p < 0.05, str_c(p, " *"), p |> as.character()))
+
+# yearss <- data.frame(NMDS1 = c(.25, .25),
+#                      NMDS2 = c(-0.5, .55),
+#                      label = c("2023", '2016'))
 
 p_oc <- ggplot(site_scores, aes(x=NMDS1, y=NMDS2)) +
   # coord_fixed() +
   geom_point(size=2, 
-             aes(color = treatment, shape = year)) +
+             aes(color = treatment)) +
   # geom_segment(data = species,x=0,y=0, color = "grey",arrow = arrow(),
   #              aes(yend = NMDS2, xend = NMDS1), lwd=1) +
   # ggrepel::geom_text_repel(data = species,size=4, aes(label = species), color = "grey40") +
   theme_classic() +
-  stat_ellipse(aes(group = year)) +
   scale_shape_manual(values = c(17,19))+
   scale_color_brewer(palette = "Set1") +
-  geom_text(data = yearss, aes(label = label))+
+  # geom_text(data = yearss, aes(label = label))+
   theme(panel.background = element_rect(fill="transparent", color = "black"),
         legend.position = c(0,1),
         legend.justification = c(0,1),
@@ -134,8 +146,32 @@ nmds <- vegan::metaMDS(commf, trymax=100)
 nmdsb <- vegan::metaMDS(commb, trymax = 100)
 
 # vegan::adonis2(nmds, d |> dplyr::select(treatment))
-adf <- adonis2(commf ~ treatment, data = d |> dplyr::select(treatment))
-adb <- adonis2(commb ~ treatment, data = d |> dplyr::select(treatment))
+adf <- adonis2(commf ~ treatment, data = d |> dplyr::select(treatment), by = 'terms')
+adb <- adonis2(commb ~ treatment, data = d |> dplyr::select(treatment), by = 'terms')
+
+pad_f <- pairwise.adonis2(commf ~ treatment, data = d, nperm = 9999) |> as_tibble() |> slice(1) %>% pivot_longer(cols = names(.)[2:length(.)]) 
+
+perm_f <- pad_f |> dplyr::select(-parent_call, -name) |> as.data.frame() |> 
+  pluck(1) |>
+  as.data.frame() |>
+  mutate(name = pad_f$name,
+         model = "Fungi",
+         R2 = round(R2, 3),
+         F = round(F, 3)) |>
+  dplyr::select(model, name, R2, F, p = 'Pr(>F)') |>
+  mutate(p = ifelse(p < 0.05, str_c(p, " *"), p))
+
+pad_b <- pairwise.adonis2(commb ~ treatment, data = d, nperm = 9999)|> as_tibble() |> slice(1) %>% pivot_longer(cols = names(.)[2:length(.)]) 
+
+perm_b <- pad_b |> dplyr::select(-parent_call, -name) |> as.data.frame() |> 
+  pluck(1) |>
+  as.data.frame() |>
+  mutate(name = pad_f$name,
+         model = "Bacteria",
+         R2 = round(R2, 3),
+         F = round(F, 3)) |>
+  dplyr::select(model, name, R2, F, p = 'Pr(>F)') |>
+  mutate(p = ifelse(p < 0.05, str_c(p, " *"), p))
 
 
 envfit(nmds, d |> dplyr::select(nitrifiers, EMF), 9999)
@@ -178,6 +214,8 @@ pof <- nmdsb$points |>
 
 top <- ggarrange(p_oc, pof, paf, nrow = 1, ncol =3, common.legend = TRUE, legend = 'bottom')
 ggsave('out/figure_2_top_panel.png', width =8.5, height = 4, bg='white')
+
+bind_rows(perm_p, perm_b, perm_f) |> write_csv("out/table_x_pairwise_permanova.csv")
 
 # bottom panel: soil ===========================================================
 
